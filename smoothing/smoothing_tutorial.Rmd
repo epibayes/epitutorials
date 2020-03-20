@@ -1,0 +1,335 @@
+---
+title: "Smoothing!"
+output: learnr::tutorial
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+require(learnr)
+require(ggplot2)
+require(plotly)
+require(lhs)
+require(FNN)
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+
+## What is smoothing?
+
+Often, the task of modeling - spatial and otherwise - is focused on understanding what happens *between* the data points we are able to observe. Just like Lisa Simpson reminds us that jazz is in the space *between* the notes, smoothing happens in between the data points.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/BbeilmP2wY8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+In spatial analysis, smoothing is a key tool that is used in a number of ways:
+
+1. **Visualization**: A bunch of points on a map are hard to interpret, so tools that make them into a *continuous* surface conveying some sort of information are much easier to digest.
+
+2. **Inference**: We often care about finding areas of elevated or decreased risk, so-called hot and cold spots. Spatial smoothing allows us to highlight areas in which risk of some outcome is elevated across multiple observations.
+
+3. **Prediction**: Our observed data may represent only a subset of the population. In this case, we can use smoothing to say something more about what might be going on between the observed data points in a way that might guide future interventions and/or data collection.
+
+In this tutorial, we will introduce some key concepts and tools for smoothing and visualizing potentially non-linear data. We will focus on *local regression* techniques for continuous outcomes, e.g. BMI, blood pressure, etc, in in one dimension, e.g. in response to some exposure, and in two dimensions representing x and y spatial coordinates. In a future tutorial we will look at complementary approaches to spatial *density* estimation which let us estimate the probability of an event occurring in space that build on the concepts discussed in this tutorial.
+
+## Smoothing in one dimension
+
+Our first task will be to generate some data that we'll use as input to our smoother from a linear model of the classic sort, i.e. $y_i \sim Normal(\alpha + \beta x_i, \sigma^2)$:
+
+```{r, echo=FALSE}
+sidebarPanel(
+  sliderInput("beta", "Slope:", min = 0.1, max = 5, value = 2),
+  sliderInput("alpha", "Intercept:", min = 0.1, max = 5, value = 0.1),
+  sliderInput("sd", "Error Standard Deviation:", min = 0.1, max = 4, value = 1)
+)
+
+mainPanel(
+  plotlyOutput("simDataPlot")
+)
+
+```
+
+The overlaid black line is the best-fit regression line obtained from the least-squares regression function in R, i.e. `lm(y ~ x, data = df)`. Nothing too surprising here. But what happens when we allow our data to be *non*-linear, coming from something like a sine function? 
+
+Then, our formula looks something like $y_i \sim Normal(\alpha + A*sin(F*x_i)), \sigma^2$, where $A$ is the amplitude of the sine function, and $F$ is its frequency. 
+
+Try moving the sliders around below and see what happens to the simulated data above. The panel below illustrates what the underlying sine function looks like without any noise:
+
+```{r}
+sidebarPanel(
+  sliderInput("period", "Frequency", min = 0.0, max = 10.0, value = 0.0),
+  sliderInput("amp", "Amplitude", min = 0.1, max = 3, value = 1)
+)
+
+mainPanel(
+  plotlyOutput("sinePlot")
+)
+```
+
+```{r, context="server"}
+xvals <- seq(from = 0.0, to = 10, by  = 0.05)
+sim_data <- reactive({
+  y <- rnorm(length(xvals), input$alpha + input$beta*xvals + input$amp*sin(xvals*input$period), input$sd)
+  
+  return(data.frame(x = xvals, y = y))
+})
+
+
+model_fit <- reactive({
+    fit <- loess(y ~ x, data = sim_data(), span = input$smooth, degree = input$smoother_degree)
+  return(fit)
+})
+
+
+output$sinePlot <- renderPlotly({
+  
+  df <- data.frame(x = xvals, y = input$amp*sin(xvals*input$period))
+  
+  g <- ggplot(df, aes(x = x, y = y)) + 
+    geom_line() +
+    xlim(0, 10) +
+    ylim(-4, 4)
+  
+  return(ggplotly(g))
+  
+})
+
+output$simDataPlot <- renderPlotly({
+  
+  df <- sim_data()
+  df$pred <- predict(lm(y ~ x, data = df))
+  
+  g <- ggplot(df, aes(x=x)) +
+    geom_point(aes(y=y), size = 0.1) + 
+    geom_line(aes(y = y), size = 0.1, colour = "gray") +
+    geom_line(aes(y = pred)) +
+    xlim(0, 10) 
+  
+  return(ggplotly(g))
+  
+})
+
+
+xpt <- reactiveVal(value = NA)
+
+
+observeEvent(input$mp_click, {
+  np <- nearPoints(sim_data(), input$mp_click, "x", "y", threshold = 30, maxpoints = 1)
+  if(nrow(np) == 0) {
+    xpt(NA)
+  } else {
+    xpt(np$x)
+  }
+})
+
+data_w_model <- reactive({
+  df <- sim_data()
+  mf <- model_fit()
+  
+  df$pred <- predict(mf)
+  df$resid <- resid(mf)
+  
+  return(df)
+})
+
+output$residPlot <- renderPlot({
+  hist(data_w_model()$resid)
+})
+
+  
+
+output$distPlot <- renderPlot({
+  
+  ## Unload the data into local var
+  model_d <- data_w_model()
+  model_d$selected <- 0.1
+  model_d$weight <- 0
+  
+  model_d$color <- "black"
+  if (is.na(xpt()) == FALSE) {
+    ## Find nearest neighbors of point
+    xpt_idx <- match(xpt(), model_d$x)
+    neighbor_dist <- knn_vals()$nn.dist[xpt_idx,]
+    max_dist <- max(neighbor_dist)
+    scaled_dist <- neighbor_dist/max_dist
+  
+
+    neighbor_idx <- knn_vals()$nn.index[xpt_idx,]
+    model_d$selected[neighbor_idx] <- 1
+    model_d$weight[neighbor_idx] <-  (1-abs(scaled_dist)**3)**3
+    model_d$color[neighbor_idx] <- "red"
+    model_d$selected[xpt_idx] <- 1
+    model_d$weight[xpt_idx] <- 1
+    model_d$color[xpt_idx] <- "blue"
+    
+  }
+  
+  ## Get weights for each point
+  fit_d <- model_d %>% filter(selected == 1) 
+  if (input$smoother_degree == 0) {
+    f <- y ~ 1
+  } else if (input$smoother_degree == 1) {
+      f <- y ~ x 
+    } else {
+      f <- y ~ poly(x,2)
+    }
+
+  mm <- lm(f, data = model_d, weights = model_d$weight)
+
+  model_d$subset_pred <- predict(mm)
+  
+
+  
+  
+  g <- ggplot(model_d, aes(x=x))
+  
+    g <- g + 
+      geom_point(aes(y=y), size = 0.1 + model_d$weight, colour = model_d$color) + 
+      geom_line(aes(y = y), size = 0.1, colour = "gray") + 
+      geom_line(aes(y=pred))
+ 
+    if (is.na(xpt()) == FALSE) {
+      g <- g+ geom_vline(xintercept = xpt(), colour ="gray", size = 0.2) + 
+          geom_line(aes(y=subset_pred), colour = "blue", linetype ="dashed")
+    }
+  
+  g <- g +  xlim(0, 10) + ylim(min(model_d$y)-2, max(model_d$y)+2)
+  
+  return(g)
+  
+})
+
+
+output$model_summary <- renderPrint({
+  summary(model_fit())
+})
+
+
+
+knn_vals <- reactive({
+  kk = ceiling(input$smooth*length(xvals))
+  if (kk >= length(xvals)) {
+    kk <- length(xvals)-1
+  }
+  get.knn(xvals, k = kk)
+})
+
+
+
+
+```
+
+### Beyond Linear Models
+
+Now, we can start looking at what happens when we fit some kind of model to our data. Here, the figure shows the original data, with the predictions of a simple linear model predicting y as a linear function of x overlaid. Try turning on the *non-linear* model, which is a commonly-used type of smoother, called a kernel smoother or kernel regression model. 
+
+In a kernel smoother, a subset of points near to the point of interest as used to estimate the value of the unobserved smooth function of interest.
+
+What a kernel function does is to weight points based on their distance from the point of interest. In the simplest version of smoothing, we can use this to take a weighted average. 
+
+So, if $h$ is the *bandwidth* of the smoother, in this case defined as the proportion of all the observed points used to estimate the function at each point, we can define a kernel function $f(d|h)$ which returns a weight from 0 to 1 for each point in the space as a function of its distance, $d$, from the point of interest. The figure below shows what this type of weighted moving average looks like for varying values of $h$.
+
+For continuous outcomes, like systolic blood pressure, a commonly used kernel function is the *tri-cube* kernel, $w(x) = (1- |d|^3)^3$, where $d$ is the distance from the point of interest, scaled to fall on the range from 0 to 1, where 1 is the maximum distance within the bandwidth of the kernel. So, for a maximum distance of 1, it looks like this:
+
+```{r}
+x <- seq(from = -1, to = 1, by = 0.01)
+y <- (1-abs(x)**3)**3
+df <- data.frame(x = x, y = y)
+g <- ggplot(df, aes(x=x, y=y)) + geom_point() + xlab("Distance") + ylab("Weight")
+plot(g)
+```
+
+When you click on the plot, it will highlight the points used for interpolation at the selected point in red, and highlight the point itself in blue. 
+
+```{r}
+sidebarPanel(
+  sliderInput("smooth", "Proportion of points used for smoothing", min = 0.01, max = 1.0, value = 0.2),
+    selectInput("smoother_degree", "Smoother Type:",
+                c("Moving Average" = 0,
+                  "Linear" = 1,
+                  "Polynomial" = 2))
+  
+)
+
+mainPanel(
+  tabsetPanel(
+    tabPanel("Plot", plotOutput("distPlot", click = "mp_click")),
+    tabPanel("Residuals", plotOutput("residPlot")),
+    tabPanel("Model Summary", verbatimTextOutput("model_summary"))
+  )
+)
+```
+
+One thing you may notice is that here we are use the *k* nearest neighbors of the point, where $k \approx hN$, and N is the total population size. As you may be able to see, this leads to particular difficulties at the edges of the figure, where higher and lower values skew the estimates, respectively. 
+
+One way to deal with this is to fit a weighted *regression* model that accounts for change at each point by fitting a linear regression model of the form `lm(y ~ x, data = df, weights = w)`, which tells the model to count closer points more than far ones. It is also common to use a *polynomial* function, i.e. `lm(y ~ poly(x,2), data  =df, weights = w)` which fits a model of the form $y = a + bx + cx^2$ to the data, to approximate each point. Try selecting the linear and polynomial options in the box above and see what happens to the estimate of the function. The blue dashed line shows the predictions of the weighted regression model at the selected point.
+
+What happens with all of these approaches as you increase the frequency of the function or its amplitude?
+
+Is there a point where increasing the *observation noise* washes out any potential non-linear effects you might pick up?
+
+## Smoothing in two Dimensions
+
+<!-- ## Thinking about *density* -->
+
+<!-- Let's generate some simple spatial *case* data. For starters, let's just assume that the distribution of cases is reflective of risk, i.e. the underlying population size is the same everywhere. In this model, we will have two processes: One generating cases randomly in space, and one representing a 'hotspot' where the risk of being a case is higher than anywhere else: -->
+
+<!-- ```{r, echo=FALSE} -->
+<!-- sidebarPanel( -->
+<!--   sliderInput("n", "Total Cases:", min = 10, max = 1000, value = 25), -->
+<!--   sliderInput("ph", "Proportion in hotspot", min = 0, max = 0.5, value = 0.01), -->
+<!--   sliderInput("hr", "Hotspot Radius", min = 0.05, max = 0.25, value = 0.1), -->
+<!--   checkboxInput("highlight", "Highlight hotspot cases", FALSE), -->
+<!-- ) -->
+
+<!-- mainPanel( -->
+<!--   plotlyOutput("dataPlot") -->
+<!-- ) -->
+<!-- ``` -->
+
+
+<!-- ```{r, context="server"} -->
+<!-- case_data <- reactive({ -->
+<!--   if (input$ph == 0) { -->
+<!--     num_hotspot <- 0 -->
+<!--   } else { -->
+<!--     num_hotspot <- rbinom(1, input$n, input$ph) -->
+<!--   } -->
+<!--   background_df <- data.frame( -->
+<!--     x = runif(input$n-num_hotspot),  -->
+<!--     y = runif(input$n-num_hotspot)) -->
+<!--   background_df$hotspot <- 0 -->
+
+<!--   print(background_df) -->
+
+<!--   if (num_hotspot > 0) { -->
+<!--     hotspot_df <- data.frame( -->
+<!--       x = runif(num_hotspot, min = 0.5-input$hr, max = 0.5+input$hr),  -->
+<!--       y = runif(num_hotspot, min = 0.5-input$hr, max = 0.5+input$hr)) -->
+<!--     hotspot_df$hotspot <- 1 -->
+<!--     out_df <- rbind(background_df, hotspot_df) -->
+<!--   } else { -->
+<!--     out_df <- background_df -->
+<!--   } -->
+
+<!--   out_df$hotspot <- as.factor(out_df$hotspot) -->
+
+<!--   return(out_df) -->
+<!-- }) -->
+
+
+<!-- output$dataPlot <- renderPlotly({ -->
+
+<!--   g <- ggplot(case_data(), aes(x=x, y = y))  -->
+<!--   if (input$highlight == FALSE) { -->
+<!--     g <- g + geom_point()  -->
+<!--   } else { -->
+<!--     g <- g + geom_point(aes(colour=hotspot)) -->
+<!--   } -->
+<!--   coord_equal() -->
+<!--   return(ggplotly(g)) -->
+<!-- }) -->
+
+
+<!-- ``` -->
+
+<!-- Try some different values and see when it's hard to see the hotspot with the naked eye when it's not. Use the toggle to turn on coloring for the hotspot points to see how good your intuition is. -->

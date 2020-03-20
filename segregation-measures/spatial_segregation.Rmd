@@ -1,0 +1,293 @@
+---
+title: "Simulating Segregation"
+output: 
+  learnr::tutorial
+runtime: shiny_prerendered
+---
+
+## Measures of spatial clustering and dispersion
+
+Let's briefly review some key metrics of spatial clustering that are often used in epidemiologic research.
+
+### Notation
+
+We will use the following notation throughout:
+
+- $a_i$ = Number of majority group members in area $i$.
+
+- $b_i$ = Number of minority group members in area $i$.
+
+- $A$ = Total number of majority members.
+
+- $B$ = Total number of minority members.
+
+- $t_i$ = Total population of area $i$ (i.e. $a_i + b_i$).
+
+- $N$ = Total overall population size (i.e. $A + B$).
+
+### Isolation
+
+If we have two groups $a$ and $b$, which $b$ is a minority group, i.e. $N_{b} < N_{a}$, isolation measures the proportion of the contacts among minority group members that are within-group. 
+
+Isolation can be calculated as:
+
+$$
+\sum_{i}^{N}\left[\left(\frac{b_i}{B}\right)\left(\frac{b_i}{t_i}\right)\right]
+$$
+
+In `R` we can write this as:
+
+```{r eval=FALSE}
+isolation <- function(x,n) {
+  x <- x[n > 0]
+  n <- n[n > 0]
+  total_a <- sum(x)
+  d <- sum((x/total_a)*(x/n))
+  return(d)
+}
+```
+
+### Dissimilarity
+
+Another common measure of clustering or segregation is the index of *dissimilarity*. This takes on values from 0 to 1 and indicates the proportion of one of the two groups that would have to move to result in a distribution matching the population-level proportions of each group. 
+
+$$
+\frac{1}{2}\sum_{i}^{N} \left| \frac{a_i}{A} - \frac{b_i}{B} \right|
+$$
+
+Each term inside the vertical bars (indicating absolute value), i.e. $a_i/A$, count the proportion of the total population of each group living in area i. If all of these equal 0, each area has the same proportion of each group as in the general poulation. Similarly, for this value to sum to 1, there have to be zero members of one group or another in each area. 
+
+This is also easy to write out in `R`:
+
+```{r, eval=FALSE}
+dissimilarity <- function(x,n) {
+  total_a <- sum(x)
+  total_b <- sum(n-x)
+  d <- 0.5*sum(abs((x/total_a) - ((n-x)/total_b)))
+  return(d)
+}
+```
+
+### Moran's I
+
+The prior two measures are *aspatial* in the sense that it doesn't matter which places are close and which are not. You can tell this is the case because the equations for each includes nothing about *distance* between locations or *adjacency*, i.e. are they touching each other at any point. To calculate Moran's I, we'll introduce a couple of new items of notation.
+
+- $w_{ij}$ is the weight of connection between areas $i$ and $j$. We will assume that $w_{ij} = 1$ when two areas are touching and zero otherwise. But these can be more complicated, e.g. a function of distance.
+
+- $W$ is the sum of all the weights.
+
+We can then define Moran's I like this:
+
+$$
+\frac{N}{W} \frac{\sum_{i} \sum_{j} w_{ij}(\frac{b_i}{B} - \frac{B}{N})(\frac{b_j}{B} - \frac{B}{N})}{\sum_{i}(\frac{b_i}{B} - \frac{B}{N})^2}
+$$
+
+You can see here that instead of evaluating individual cells one at a time, we look at them in pairs. Each $\frac{b_i}{B} - \frac{B}{N}$ term is measuring the deviation from the population average proportion of the minority group in each location. The closer these are to each other among pairs with larger weights, the greater the value of I. Unlike the first two measures, *I* can take on negative and positive values, with a value of 1 indicating perfect correlation, i.e. all individuals are clustered among like individuals, as in a dissimilarity value of 1, and -1 indicates perfect repulsion, like a checkerboard:
+
+![](https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Checkerboard_pattern.svg/250px-Checkerboard_pattern.svg.png)
+
+Finally a value of 0 indicates a fully random distribution, analogous to a zero in the index of dissimilarity.
+
+## Simulating some data
+
+Let's start with a simple scenario in which we have city in which individuals live on *blocks* nested within *neighborhoods*, which are themselves nested within *quadrants* of a city. Finally, the city has two halves - an East and West side - each of which contains 2 quadrants.
+
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+require(dplyr)
+require(ggplot2)
+require(spdep)
+require(segregation)
+
+source("src/segregation.R")
+
+dissimilarity <- function(x,n) {
+  total_a <- sum(x)
+  total_b <- sum(n-x)
+  d <- 0.5*sum(abs((x/total_a) - ((n-x)/total_b)))
+  return(d)
+}
+
+
+half_grid <- function(d, ratio, N, p) {
+  
+  ## Sample number of unvaccinated in total population
+  
+  B <- rbinom(1, N, p)
+  
+  A <- N-B
+  
+  neighborhood_mat <- matrix(1, d, d)
+  ncell <- length(neighborhood_mat)
+  neighborhood_mat[, 1:floor(d / 2)] <- ratio
+  
+  neighborhood_df <- expand.grid(x = 1:d, y = 1:d)
+  cell_rates <-
+    as.vector(neighborhood_mat[cbind(neighborhood_df$y, neighborhood_df$x)])
+  neighborhood_df$b <- rmultinom(1, B, cell_rates)
+  neighborhood_df$a <- rmultinom(1, A, 1 / cell_rates)
+  
+  neighborhood_df$n <- neighborhood_df$a + neighborhood_df$b
+  neighborhood_df$group <- neighborhood_df$b / neighborhood_df$n
+  
+  return(neighborhood_df)
+  
+}
+
+grid_plot <- function(df) {
+  
+  g <- ggplot(df, aes(x = x, y = y, fill = p)) + 
+    geom_raster() + 
+    theme_bw() + 
+    coord_equal() +
+    guides(fill = guide_legend(title = "Proportion Unvaccinated")) 
+  
+  return(g)
+}
+
+proportion_hist <- function(df) {
+  g <- ggplot(df, aes(x=p)) +
+    geom_histogram(binwidth=0.005) +
+    xlab("Proportion Unvaccinated") +
+    ylab("N")
+  
+  return(g)
+}
+
+## Define a function to calculate Moran's I for an 
+## arbitrary vector of values on a square grid
+morans_grid <- function(d, x) {
+  require(spdep)
+  
+  neighbors <- nb2listw(cell2nb(d,d))
+  
+  return(moran(x, neighbors, 1, 1))
+  
+}
+
+isolation <- function(x,n) {
+  x <- x[n > 0]
+  n <- n[n > 0]
+  total_a <- sum(x)
+  d <- sum((x/total_a)*(x/n))
+  return(d)
+}
+
+theil <- function(df, top_unit) {
+  segregation::mutual_total(df, "vaccinated", top_unit, weight = "n" )[2,2]
+}
+
+
+## Size of the total population
+total_pop <- 100000
+d <- 8
+```
+
+
+```{r makegrid, echo=FALSE}
+sidebarLayout(
+  sidebarPanel(
+    h4("Model Parameters"),
+    sliderInput(
+      "punvax",
+      "Baseline proportion Unvaccinated",
+      min = 0.05,
+      max = 0.5,
+      value = 0.1
+    ),
+    sliderInput(
+      "hor",
+      "Left  vs. right odds ratio",
+      min = 1,
+      max = 5,
+      value = 2
+    ),
+     sliderInput(
+      "qor",
+      "High-risk quadrant odds ratio",
+      min = 1,
+      max = 5,
+      value = 1
+    ),
+        sliderInput(
+      "nor",
+      "High-risk neighborhood odds ratio",
+      min = 1,
+      max = 5,
+      value = 1
+    ),
+    sliderInput("bor",
+                "High-risk block odds ratio", min = 1, max = 5, value = 1),
+    br(),
+    h4("Metrics"),
+    textOutput("avgp"),
+    textOutput("iso"),
+    textOutput("dissim"),
+    textOutput("morans"),
+    
+    br(),
+    br(),
+    h4("Theil Index"),
+    textOutput("blocktheil"),
+    textOutput("neightheil"),
+    textOutput("quadtheil"),
+      textOutput("halftheil")
+    
+  ),
+  
+  mainPanel(tabsetPanel(
+    type = "tabs",
+    tabPanel("Map", plotOutput("initialPlot")),
+    tabPanel("Population", plotOutput("proportionNonVax"))
+  ))
+)
+```
+
+
+
+
+
+<!-- ## How do these change with the proportion unvaccinated? -->
+
+<!-- ```{r} -->
+
+<!-- ## Make a vector with a range of unvaccinated fractions from 1% to 40% -->
+<!-- unvax_p <- seq(from = 0.01, to = 0.4, by = 0.01) -->
+<!-- ratios <- seq(from = 1, to = 5, by = 0.5) -->
+<!-- ## Empty vectors to store the estimated dissimilary and -->
+<!-- ## isolation values -->
+<!-- iso_vals <- rep(0, length(unvax_p)) -->
+<!-- dissim_vals <- rep(0, length(unvax_p)) -->
+<!-- moran_vals <- rep(0, length(unvax_p)) -->
+<!-- for (i in 1:length(unvax_p)) { -->
+
+<!--   ## Generate a new grid with the specified unvaccinated fraction -->
+<!--   neighborhood_tmp <- half_grid(d, 3, total_pop, unvax_p[i]) -->
+<!--   iso_vals[i] <- isolation(neighborhood_tmp$b, neighborhood_tmp$n) -->
+<!--   dissim_vals[i] <- dissimilarity(neighborhood_tmp$b, neighborhood_tmp$n) -->
+<!--   moran_vals[i] <- morans_grid(d, neighborhood_tmp$group)$I -->
+<!-- } -->
+
+<!-- ``` -->
+
+<!-- ### Visualize relationship between unvaccinated proportion and isolation -->
+<!-- ```{r} -->
+<!-- plot(unvax_p, iso_vals) -->
+<!-- ``` -->
+
+<!-- ## Dissimilarity -->
+
+<!-- ```{r} -->
+<!-- plot(unvax_p, dissim_vals) -->
+<!-- ``` -->
+
+<!-- ## Moran's I -->
+
+<!-- ```{r} -->
+<!-- plot(unvax_p, moran_vals) -->
+<!-- ``` -->
+
+```{r, context="server", code=readLines("src/server.R")}
+
+```
+

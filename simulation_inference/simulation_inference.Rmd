@@ -1,0 +1,166 @@
+---
+title: "Understanding the role of simulation in statistical inference."
+output: learnr::tutorial
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Sampling from a Normal distribution
+
+In this example, we're going to go back to basics, and use both a formula and simulation to calculate confidence intervals for a *sample mean*. So, first, pick a mean and standard deviation and number of samples to draw from a Normal distribution. 
+
+Move the sliders around to get a sense of how much things change as you incrase the sample size.
+
+
+
+```{r, echo=FALSE}
+
+numericInput("mean", "Mean:", value = 0)
+
+numericInput("sd", "Standard Deviation:", min = 0.1, max = 4, value = 1)
+
+sliderInput("nsamp", "Number of samples:", min = 1, max = 500, value = 20)
+
+
+plotOutput("distPlot")
+```
+
+So, for this one sample, we now have  the following sample mean and sample standard deviation:
+```{r, echo=FALSE}
+textOutput("samplemean")
+textOutput("se")
+```
+
+```{r, context="server"}
+
+x <- reactive({rnorm(input$nsamp, input$mean, input$sd)})
+
+output$distPlot <- renderPlot({
+
+  hist(x(),  col = 'darkgray', border = 'white', xlab = mean(x))
+})
+
+output$samplemean <- renderText({paste0("Sample mean = ", round(mean(x()),2))})
+
+output$se <- renderText({paste0("Sample standard deviation = ", round(sd(x()),2))})
+
+```
+
+### Calculating Confidence Intervals
+
+The classic approach to calculating 95% confidence intervals for a population mean is to look up the appropriate value in a *t-table*, as a function of the number of *degrees of freedom*, i.e. the number of overall samples contributing to the mean.
+
+In R, we can do this as follows, where $s$ is the sample standard deviation and $a$ is the sample mean.
+
+```{r eval=FALSE, echo = TRUE}
+
+## First calculate the standard error using the quantiles of 
+## the t-distribution
+
+
+error <- qt(0.975, df = n-1)*(s/sqrt(n))
+
+## Then calculate upper and lower confidence limits
+lower_ci <- a - error
+upper_ci <- a + error
+
+```
+
+Now, go ahead and calculate these for the input values above:
+
+```{r}
+actionButton("ci", "Calculate Confidence Intervals")
+textOutput("sse")
+```
+
+```{r, context="server"}
+sse <- eventReactive(input$ci, {
+  qt(0.975, df = input$nsamp-1)*(sd(x())/sqrt(input$nsamp))
+})
+
+output$sse <- renderText({
+  paste0("Sample Mean = ", round(mean(x()),2), " Standard error = ", round(sse(), 2)," 95% CI  =", round(mean(x()) - sse(),2), ", ",round(mean(x())+sse(),2))
+  }
+  )
+```
+
+### Yeah, but what does that mean?
+
+We are supposed to interpret these confidence intervals as meaning "95% of the time, the *true mean* will fall between the confidence intervals. So, why don't we test the proposition?
+
+First, let's take a look at the distribution of *sample means* we get from taking 1000 samples:
+
+```{r}
+actionButton("sm", "Simulate sample means")
+
+plotOutput("samplemeans")
+```
+
+```{r, context = "server"}
+
+sm_data <- eventReactive(input$sm, {
+  mean_output <- rep(0, 1000)
+  for (i in 1:1000) {
+    mean_output[i] <- mean(rnorm(input$nsamp, mean = input$mean, sd = input$sd))
+  }
+  
+  return(mean_output)
+
+})
+
+output$samplemeans <- renderPlot({hist(sm_data(), xlab = paste0("Standard error of the mean = ", round(1.67*sd(sm_data()),2)))})
+
+```
+
+So, if for each of those sample means, we computed the confidence intervals, if all goes to plan, 95% of the time, they should include the true value of the mean you set all the way at the top. We can do this easily using the `TInterval` function from the R `sigr` package, like so:
+
+```{r, eval=FALSE, echo=TRUE}
+for (i in 1:1000) {
+    sampled_vals <-rnorm(input$nsamp, mean = input$mean, sd = input$sd)
+    tvals <- sigr::TInterval(sampled_vals)
+    
+    if ((input$mean >= tvals$interval_low) && (input$mean <= tvals$interval_high)) {
+      num_containing <- num_containing + 1
+    }
+    
+}
+
+```
+
+```{r}
+actionButton("simint", "Simulate Confidence Intervals")
+textOutput("cipct")
+```
+
+```{r, context = "server"}
+
+ci_contains <- eventReactive(input$simint,{
+  
+  num_containing <- 0
+  
+  for (i in 1:1000) {
+    sampled_vals <-rnorm(input$nsamp, mean = input$mean, sd = input$sd)
+    tvals <- sigr::TInterval(sampled_vals)
+    
+    if ((input$mean >= tvals$interval_low) && (input$mean <= tvals$interval_high)) {
+      num_containing <- num_containing + 1
+    }
+    
+  }
+  
+  return(paste0(round(100*num_containing/1000,2), "%"))
+  
+})
+
+
+output$cipct <- renderText({
+  paste0("Contains the true mean ", ci_contains(), " of the time!")
+  })
+
+```
+

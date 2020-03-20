@@ -1,0 +1,97 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup}
+require(rstanarm)
+require(readr)
+require(lme4)
+require(pander)
+require(bayesplot)
+require(ggplot2)
+```
+```{r, fig.height=4, fig.width=2}
+data(radon)
+radon_county <- radon %>%
+  group_by(county) %>%
+  summarise(log_radon_mean = mean(log_radon),
+            log_radon_sd = sd(log_radon),
+            log_uranium = mean(log_uranium),
+            n = length(county)) %>%
+  mutate(log_radon_se = log_radon_sd / sqrt(n))
+ggplot() +
+  geom_boxplot(data = radon,
+               mapping = aes(y = log_radon,
+                             x = fct_reorder(county, log_radon, mean)),
+               colour = "gray") +
+  geom_point(data = radon,
+             mapping = aes(y = log_radon,
+                           x = fct_reorder(county, log_radon, mean)),
+             colour = "gray") +
+  geom_point(data = radon_county,
+             mapping = aes(x = fct_reorder(county, log_radon_mean),
+                           y = log_radon_mean),
+             colour = "black") +
+  coord_flip() +
+  labs(y = "log(radon)", x = "")
+```
+
+First, load the *county level* radon data:
+
+```{r}
+county_df <- read_csv("output/data/county_radon.csv")
+print(county_df)
+```
+And now the household data:
+
+```{r}
+household_df <- read_csv("output/data/household_radon.csv")
+print(household_df)
+```
+
+The first step is to *merge* these together to create a single dataset with the appropriate county-level values for each household:
+
+```{r}
+complete_df <- dplyr::inner_join(household_df, county_df) 
+complete_df$county <- as.factor(complete_df$county)
+  
+  
+print(complete_df)
+```
+
+Now, let's see what happens if we go ahead and do the wrong thing and model the outcome in a no-pooling model:
+
+```{r}
+m <- lm(log_radon ~ floor + log_uranium, data = radon)
+pander(summary(m), digits = 2)
+```
+
+```{r, results="hide"}
+m0 <- stan_glm(log_radon ~ floor + log_uranium , data = radon, refresh=-1)
+```
+
+```{r, results="hide"}
+m1 <- stan_glm(log_radon ~ floor + county, data =radon, chains=1,refresh=-1)
+```
+
+```{r, fig.height=5, fig.width=4}
+m1 %>%
+spread_draws(county) %>%
+  median_qi() %>%
+  ggplot(aes(y = fct_reorder(county, b), x = b, xmin = .lower, xmax = .upper)) +
+  geom_pointintervalh()
+```
+
+
+```{r, results="hide"}
+m2 <- stan_glmer(radon ~ ff + uranium + (1 | county), data = complete_df)
+```
+
+```{r, fig.height=5, fig.width=4}
+m2 %>%
+spread_draws(b[(Intercept), county]) %>%
+  median_qi() %>%
+  ggplot(aes(y = fct_reorder(county, b), x = b, xmin = .lower, xmax = .upper)) +
+  geom_pointintervalh()
+```

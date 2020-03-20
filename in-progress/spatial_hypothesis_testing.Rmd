@@ -1,0 +1,63 @@
+## How can we know if the patterns we observe can be distinguished from random chance alone?
+
+```{r}
+
+## Generate allocations assuming a completely uniform distribution
+nsamp <- 500
+rand_isolation <- rep(0, nsamp)
+
+moran_ranges <- data.frame()
+isolation_ranges <- data.frame()
+dissim_ranges <- data.frame()
+
+for (i in 1:nsamp) {
+  
+  ## These are just shuffling the vaccinated and unvaccinated around
+  random_a  <- rmultinom(1, A, rep(1, ncell))
+  random_b <- rmultinom(1, B, rep(1, ncell))
+  random_n <- random_a + random_b
+  rand_isolation[i] <- morans_grid(d, random_b/random_n)$I
+}
+```
+
+```{r}
+g <- ggplot(data = data.frame(x=rand_isolation),aes(x=x)) + 
+  #geom_vline(xintercept = p, linetype = "dashed") + 
+  geom_histogram() +
+  theme_bw()
+plot(g)
+
+```
+
+
+```{r}
+morans_grid(d, neighborhood_df$group)$I
+```
+
+```{r}
+## Randomize
+
+random_df <- neighborhood_df
+random_df$group <- sample(neighborhood_df$group)
+
+g <- ggplot(random_df, aes(x = x, y = y, fill =group)) + 
+  geom_raster() + 
+  theme_bw() + 
+  coord_equal()
+plot(g)
+
+```
+
+
+```{r}
+
+## Permutation test on grid values
+nsamp <- 5000
+moran_values <- rep(0, nsamp)
+neighbors <- nb2listw(cell2nb(d,d))
+for (i in 1:nsamp) {
+  moran_values[i] <- moran(sample(neighborhood_df$group), neighbors, 1, 1)$I
+}
+
+hist(moran_values, breaks = 100)
+```

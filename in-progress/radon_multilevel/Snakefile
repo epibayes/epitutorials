@@ -1,0 +1,4 @@
+rule processdata:
+    input: data = "data/radon.data", scriptfile = "src/process_data.R"
+    output: "output/data/county_radon.csv", "output/data/household_radon.csv"
+    script: "src/process_data.R"
