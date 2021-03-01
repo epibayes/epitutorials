@@ -1,11 +1,16 @@
 ---
-title: "Understanding the role of simulation in statistical inference."
-output: learnr::tutorial
+title: "Using simulation to better understand Bayesian and Frequentist inference"
+output: 
+  learnr::tutorial:
+    progressive: true
 runtime: shiny_prerendered
 ---
 
 ```{r setup, include=FALSE}
 library(learnr)
+require(rstanarm)
+require(bayesplot)
+require(ggplot2)
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
@@ -15,8 +20,6 @@ knitr::opts_chunk$set(echo = FALSE)
 In this example, we're going to go back to basics, and use both a formula and simulation to calculate confidence intervals for a *sample mean*. So, first, pick a mean and standard deviation and number of samples to draw from a Normal distribution. 
 
 Move the sliders around to get a sense of how much things change as you incrase the sample size.
-
-
 
 ```{r, echo=FALSE}
 
@@ -47,11 +50,13 @@ output$distPlot <- renderPlot({
 
 output$samplemean <- renderText({paste0("Sample mean = ", round(mean(x()),2))})
 
+
+
 output$se <- renderText({paste0("Sample standard deviation = ", round(sd(x()),2))})
 
 ```
 
-### Calculating Confidence Intervals
+## Calculating Confidence Intervals
 
 The classic approach to calculating 95% confidence intervals for a population mean is to look up the appropriate value in a *t-table*, as a function of the number of *degrees of freedom*, i.e. the number of overall samples contributing to the mean.
 
@@ -102,6 +107,7 @@ plotOutput("samplemeans")
 ```
 
 ```{r, context = "server"}
+
 
 sm_data <- eventReactive(input$sm, {
   mean_output <- rep(0, 1000)
@@ -164,3 +170,279 @@ output$cipct <- renderText({
 
 ```
 
+## Bayesian Credible Intervals
+
+### Bayes' Rule
+
+Unsurprisingly, the oft-discussed, oft-misunderstood Bayes' rule is at the heart of Bayesian inference. You may be used to the classic formula:
+
+$$
+P(A|B) = \frac{P(B|A)P(A)}{P(B)}
+$$
+
+For the purposes of inference, we'll re-write it so it looks a bit more familiar:
+
+$$
+P(\theta | Y) = \frac{P(Y|\theta)P(\theta)}{P(Y)}
+$$
+Where $\theta$ is our *model* and its parameters and $Y$ are the data. At this point, you may be thinking, ok great, that's not helpful.  
+
+Let's walk through the four parts of the rule:
+
+1. Posterior, $P(\theta|Y)$:  this is the thing we care about estimating. It's a distribution of model parameters (think population means, $\mu$, or the intercept and slope of a regression model), conditioned on the data. In plain english, we might say something like: If these are the data, then these are the parameters that make sense. 
+
+2. Likelihood, $P(Y|\theta)$: The likelihood. In other words, given a set of model parameters, what is the likelihood we will observe the data. So, if our data come from a normal distribution and we are trying to estimate its parameters, this is the probability that $Y \sim \mathcal{N}(\hat{\mu}, \hat{\sigma^2})$, where $\hat{\mu}$ and $\hat{\sigma^2}$ are our guesses at the mean and standard deviation, respectively.
+
+3. Prior, $P(\theta)$: This tends to be the big boogeyman. The prior represents our state of belief about the model inputs. If we think a particular parameter value is more likely based on prior knowledge, intuition, data, or something else our prior can reflect that. For now, we're not going to worry about it too much, but it's in there.
+
+4. Probability of the data, $P(Y)$: We are going to basically ignore this one altogether. Thankfully, it doesn't make much of a difference because it's constant and doesn't depend on our model parameters. 
+
+Let's imagine we're going to set our prior to be indifferent to the parameter values, i.e. $Pr(\theta) = 1$. All of a sudden, our inference task starts to look a bit less onerous: $Pr(\theta | Y) \propto Pr(Y | \theta)$, where $\propto$ means 'proportional to'. So, to get at our Bayesian estimate, all we need to know is the likelihood! Kind of like in the good-old maximum likelihood example from a few minutes ago. 
+
+Remember, in R, we can write the likelihood of an observed data point from a normal distribution as:
+
+```{r echo=TRUE,eval=FALSE}
+y_lik <- dnorm(y, mean = mu, sd = sd)
+```
+
+
+### Estimating Parameters using the *posterior*
+
+Frst, remember the sample mean from the very first example:
+
+```{r}
+textOutput("sm2")
+```
+
+It turns out, that in R, with packages like `rstanarm`, fitting a Bayesian model is roughly as straightforward as fitting a frequentist one, for example, to estimate the mean and standard deviation of our data, we can just write:
+
+```{r, eval=FALSE,echo=TRUE}
+library(rstanarm)
+fit <- stan_glm(y ~ 1, data = df)
+```
+
+Where `df` is a data frame containing our samples under the variable `y`, and the formula `y ~ 1` tells `R` to fit a model with just an intercept, in this case the mean of the sample.
+
+
+Now go ahead and sample from the posterior and see what you get. In this example, we will just fit the mean, fixing the standard deviation at its input value.
+
+```{r}
+actionButton("cpost", "Simulate Posterior")
+
+plotOutput("posterior_mean")
+plotOutput("posterior_sigma")
+```
+
+## Interpreting the posterior
+
+While  *confidence intervals* refer to our confidence that the true parameter is between the intervals estimated from any given *sample*, the posterior credible intervals reflect the probability that the parameter *that generated the data* lies between the bounds. In other words, in 95% of samples, the parameter that generated the data should lie between the 95% posterior credible intervals.
+
+This may sound a bit like the confidence interval definition, but rather than being a statement about the *sampling distribution* of the data, it is about the model instead.
+
+Let's show how this works by borrowing from the thought experiment in this  [great blog post](http://jakevdp.github.io/blog/2014/06/12/frequentism-and-bayesianism-3-confidence-credibility/):
+
+To understand what the posterior credible intervals are telling us, imagine the following steps:
+
+1. Sample random values of the mean from the prior, i.e. $\mu$.
+2. Sample random sets of points $\hat{y}$ given each $\mu$.
+3. Keep the values of $mu$ where $\hat{y} = y$.
+4. Ask what fraction of the $\mu$ values are within the credible region.
+
+If you were able to do this - a big if, since sampling the *exact* set of points is not very likely - then you would find that 95% of the time, the original value of $\mu$ would be between the credible intervals.
+
+Click over to the next topic to see how we can do this in a bit more practical way...
+
+## Sampling from the posterior
+
+Since it is difficult to simulate data that *exactly match* our data, we have to use the *likelihood* to sample parameters at a rate that is *proportional* (there's that word again...) to their likelihood. The classic way to do this is with the [Metropolis-Hastings algorithm](https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm). 
+
+The steps of the algorithm are as follows:
+
+1. Initialize the starting value of $\mu_0$.
+
+2. Sample the next parameter value, which we'll call $\mu'$ from a *proposal distribution*. We'll use what's called a *random walk* proposal distribution, in which $mu' = \mu_{t} + \epsilon$, where $\epsilon \sim \mathcal{N}(0, \sigma_{w})$, where $\sigma_w$ is the size of each step. (For the purposes of this example, we'll assume that $\sigma$ is known and we just want to figure out the value of $\mu$.)
+
+The figure below shows a random walk over 500 steps, starting at an initial value of $\mu = 0$:
+
+```{r, warning=FALSE, message=FALSE}
+require(ggplot2)
+N <- 500
+z <- cumsum(rnorm(N,0,1))
+df <- data.frame(x = 1:N, y = z)
+g <- ggplot(df, aes(x=x,y=y)) + 
+  geom_point() + 
+  geom_line() + 
+  xlab("Step") + 
+  ylab("Proposed Value")
+
+plot(g)
+```
+
+3. Evalulate the *likelihood ratio* between the last value of $\mu$ and the proposed value, $\mu_i$. We can get this directly from the `dnorm` function in R, by first evaluating the likelihood of the observed data $y$ with respect to both $\mu$ and $\mu'$, like so (in this case assuming a totally non-informative prior for simplicity): 
+
+```{r, echo=TRUE, eval=FALSE}
+y_lik_mu <- sum(dnorm(y, mu, sigma, log=TRUE))
+y_lik_mu_prime <- sum(dnorm(y, mu_prime, sigma, log=TRUE))
+```
+
+We can then put these together to calculate the *acceptance probability* for $\mu'$:
+
+```{r, echo=TRUE, eval=FALSE}
+A <- min(1,exp(y_lik_mu_prime - y_lik_mu))
+```
+
+What this is saying is that if the ratio of `y_lik_mu_prime` to `y_lik_mu` is < 1, so the proposed value is less likely than the first, we should accept the second one at a rate *proportional to* the ratio. So if it's 0.6, we'll take the 'worse' value 60% of the time. But if it's a 'better' value, i.e. $A > 1$, we will accept it 100% of the time. 
+
+So, now we can put it all together in this bit of code:
+
+```{r, eval=FALSE, echo=TRUE}
+
+steps <- 1000
+mu_0 <- 1
+step_size <- 0.5
+mu_vals <- rep(0, steps)
+
+mu_vals[1] <- mu_0
+for (i in 2:steps) {
+  
+  mu_prime <- mu_vals[i-1] + rnorm(1, 0, step_size)
+  
+  y_lik_mu <- sum(dnorm(y, mu_vals[i-1], sigma, log=TRUE))
+  
+  y_lik_mu_prime <- sum(dnorm(y, mu_prime, sigma, log=TRUE))
+  
+  A <- min(1,exp(y_lik_mu_prime - y_lik_mu))
+
+  if (runif(1) < A) {
+    mu_vals[i] <- mu_prime
+  } else {
+    mu_vals[i] <- mu_vals[i-1]
+  }
+}
+```
+
+Ok, now let's give this a go with some more simulated data:
+
+```{r}
+sidebarLayout(
+  sidebarPanel(
+    sliderInput("mu2", "Mean:", min = -10, max = 10, value = 2, step = 0.1),
+    sliderInput("sigma2", "SD:", min = 0.2, max = 10, value = 1, step = 0.1 ),
+    sliderInput("nsamp2", "Number of samples:", min = 10, max = 500, value = 30, step = 1)
+  ),
+  mainPanel(
+    plotOutput("y2plot")
+  )
+)
+```
+
+Now, let's sample using the Metropolis Hastings algorithm and see what we get:
+
+```{r}
+sidebarLayout(
+  sidebarPanel(
+    sliderInput("stepsize", "Step Size:", min = 0.1, max = 3, value = 1, step = 0.1),
+    sliderInput("numsteps", "Number of MCMC steps:", min = 1000, max = 5000, value = 2000, step = 100),
+    actionButton("runmcmc", "Run MCMC")
+  ),
+  mainPanel(
+    plotOutput("mcmcfigure")
+  )
+)
+```
+
+```{r, context = "server"}
+
+output$sm2 <- renderText({
+  paste0("Sample mean = ", round(mean(x()),2))
+  })
+
+bayes_fit <- eventReactive(input$cpost, {
+  fit <- stan_glm(y ~ 1, data = data.frame(y = x()))
+
+})
+
+output$posterior_mean <- renderPlot({
+    posterior <- as.matrix(bayes_fit())
+
+  plot_title <- ggtitle("Posterior Mean",
+                      "with medians and 95% interval")
+  mcmc_areas(posterior, 
+           pars = c("(Intercept)"), 
+           prob = 0.95) + plot_title + geom_vline(xintercept = input$mean)
+})
+
+output$posterior_sigma <- renderPlot({
+    posterior <- as.matrix(bayes_fit())
+
+  plot_title <- ggtitle("Posterior Standard Deviation",
+                      "with median and 95% interval")
+  mcmc_areas(posterior, 
+           pars = c("sigma"), 
+           prob = 0.95) + plot_title + geom_vline(xintercept = input$sd)
+})
+
+output$posteriorEst <- renderText({
+  z <- quantile(rnorm(100), probs=c(0.025, 0.5, 0.975))
+  
+  
+zz <- paste0("Posterior median = ", round(z[2],2), "; Posterior Credible Intervals = ", round(z[1],2),"-", round(z[3],2))
+return(zz)
+
+  })
+
+mh_samples <- function(y, sigma, steps, burnin, step_size) {
+  
+total_steps <- burnin+steps
+
+mu_0 <- 1
+mu_vals <- rep(0, total_steps)
+
+mu_vals[1] <- mu_0
+for (i in 2:total_steps) {
+  
+
+  mu_prime <- mu_vals[i-1] + rnorm(1, 0, step_size)
+  
+  y_lik_mu <- sum(dnorm(y, mu_vals[i-1], sigma, log=TRUE))
+  
+
+  y_lik_mu_prime <- sum(dnorm(y, mu_prime, sigma, log=TRUE))
+  
+  A <- min(1,exp(y_lik_mu_prime - y_lik_mu))
+
+  if (runif(1) < A) {
+    mu_vals[i] <- mu_prime
+  } else {
+    mu_vals[i] <- mu_vals[i-1]
+  }
+}
+
+return(mu_vals[burnin:total_steps])
+  
+}
+
+bayes_y <- reactive({
+  y <- rnorm(input$nsamp2, input$mu2, input$sigma2)
+})
+
+output$y2plot <- renderPlot({
+  g <- ggplot(data.frame(y=bayes_y())) + geom_histogram(aes(x=y))
+  return(g)
+})
+
+mcmc_fit <- eventReactive(input$runmcmc,{
+  y <- mh_samples(bayes_y(), input$sigma2, input$numsteps, 1000, input$stepsize)
+  return(y)
+})
+
+output$mcmcfigure <- renderPlot({
+  qvals <- quantile(mcmc_fit(), probs = c(0.025, 0.5, 0.975))
+    g <- ggplot(data.frame(y=mcmc_fit())) + geom_histogram(aes(x=y)) + geom_vline(xintercept = qvals[2])
+  return(g)
+})
+
+output$mcmctrace <- renderPlot({
+  
+})
+```

@@ -1,6 +1,8 @@
 ---
 title: "Smoothing!"
-output: learnr::tutorial
+output: 
+  learnr::tutorial:
+    progressive: true
 runtime: shiny_prerendered
 ---
 
@@ -10,6 +12,8 @@ require(ggplot2)
 require(plotly)
 require(lhs)
 require(FNN)
+require(truncnorm)
+require(waiter)
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
@@ -36,7 +40,10 @@ In this tutorial, we will introduce some key concepts and tools for smoothing an
 Our first task will be to generate some data that we'll use as input to our smoother from a linear model of the classic sort, i.e. $y_i \sim Normal(\alpha + \beta x_i, \sigma^2)$:
 
 ```{r, echo=FALSE}
+
 sidebarPanel(
+  use_waiter(),
+
   sliderInput("beta", "Slope:", min = 0.1, max = 5, value = 2),
   sliderInput("alpha", "Intercept:", min = 0.1, max = 5, value = 0.1),
   sliderInput("sd", "Error Standard Deviation:", min = 0.1, max = 4, value = 1)
@@ -75,7 +82,7 @@ sim_data <- reactive({
 
 
 model_fit <- reactive({
-    fit <- loess(y ~ x, data = sim_data(), span = input$smooth, degree = input$smoother_degree)
+  fit <- loess(y ~ x, data = sim_data(), span = input$smooth, degree = input$smoother_degree)
   return(fit)
 })
 
@@ -135,7 +142,7 @@ output$residPlot <- renderPlot({
   hist(data_w_model()$resid)
 })
 
-  
+
 
 output$distPlot <- renderPlot({
   
@@ -151,8 +158,8 @@ output$distPlot <- renderPlot({
     neighbor_dist <- knn_vals()$nn.dist[xpt_idx,]
     max_dist <- max(neighbor_dist)
     scaled_dist <- neighbor_dist/max_dist
-  
-
+    
+    
     neighbor_idx <- knn_vals()$nn.index[xpt_idx,]
     model_d$selected[neighbor_idx] <- 1
     model_d$weight[neighbor_idx] <-  (1-abs(scaled_dist)**3)**3
@@ -168,29 +175,29 @@ output$distPlot <- renderPlot({
   if (input$smoother_degree == 0) {
     f <- y ~ 1
   } else if (input$smoother_degree == 1) {
-      f <- y ~ x 
-    } else {
-      f <- y ~ poly(x,2)
-    }
-
+    f <- y ~ x 
+  } else {
+    f <- y ~ poly(x,2)
+  }
+  
   mm <- lm(f, data = model_d, weights = model_d$weight)
-
+  
   model_d$subset_pred <- predict(mm)
   
-
+  
   
   
   g <- ggplot(model_d, aes(x=x))
   
-    g <- g + 
-      geom_point(aes(y=y), size = 0.1 + model_d$weight, colour = model_d$color) + 
-      geom_line(aes(y = y), size = 0.1, colour = "gray") + 
-      geom_line(aes(y=pred))
- 
-    if (is.na(xpt()) == FALSE) {
-      g <- g+ geom_vline(xintercept = xpt(), colour ="gray", size = 0.2) + 
-          geom_line(aes(y=subset_pred), colour = "blue", linetype ="dashed")
-    }
+  g <- g + 
+    geom_point(aes(y=y), size = 0.1 + model_d$weight, colour = model_d$color) + 
+    geom_line(aes(y = y), size = 0.1, colour = "gray") + 
+    geom_line(aes(y=pred))
+  
+  if (is.na(xpt()) == FALSE) {
+    g <- g+ geom_vline(xintercept = xpt(), colour ="gray", size = 0.2) + 
+      geom_line(aes(y=subset_pred), colour = "blue", linetype ="dashed")
+  }
   
   g <- g +  xlim(0, 10) + ylim(min(model_d$y)-2, max(model_d$y)+2)
   
@@ -243,10 +250,10 @@ When you click on the plot, it will highlight the points used for interpolation 
 ```{r}
 sidebarPanel(
   sliderInput("smooth", "Proportion of points used for smoothing", min = 0.01, max = 1.0, value = 0.2),
-    selectInput("smoother_degree", "Smoother Type:",
-                c("Moving Average" = 0,
-                  "Linear" = 1,
-                  "Polynomial" = 2))
+  selectInput("smoother_degree", "Smoother Type:",
+              c("Moving Average" = 0,
+                "Linear" = 1,
+                "Polynomial" = 2))
   
 )
 
@@ -269,67 +276,297 @@ Is there a point where increasing the *observation noise* washes out any potenti
 
 ## Smoothing in two Dimensions
 
-<!-- ## Thinking about *density* -->
+### Thinking about *density*
 
-<!-- Let's generate some simple spatial *case* data. For starters, let's just assume that the distribution of cases is reflective of risk, i.e. the underlying population size is the same everywhere. In this model, we will have two processes: One generating cases randomly in space, and one representing a 'hotspot' where the risk of being a case is higher than anywhere else: -->
+In spatial analysis, we often want to know whether a particular area has more *cases* than we might expect by chance alone. Smoothing can be a powerful tool both for completing exploratory visualizations of our data to highlight areas of concern, and to confirm whether or not the patterns we detect visually are likely to be robust. In the next few steps, we'll explore how *kernel density estimation* (KDE) can be used to visualize the distribution of individuals in space, as well as how we can use KDE to measure the *intensity* of risk in a given area. 
 
-<!-- ```{r, echo=FALSE} -->
-<!-- sidebarPanel( -->
-<!--   sliderInput("n", "Total Cases:", min = 10, max = 1000, value = 25), -->
-<!--   sliderInput("ph", "Proportion in hotspot", min = 0, max = 0.5, value = 0.01), -->
-<!--   sliderInput("hr", "Hotspot Radius", min = 0.05, max = 0.25, value = 0.1), -->
-<!--   checkboxInput("highlight", "Highlight hotspot cases", FALSE), -->
-<!-- ) -->
+### What is *kernel density estimation*?
 
-<!-- mainPanel( -->
-<!--   plotlyOutput("dataPlot") -->
-<!-- ) -->
-<!-- ``` -->
+As compared to *kernel smoothing* from the previous example, KDE is used to approximate the distribution of some random variable that may have an unknown distribution, i.e. we're not sure if the data came from a Normal distribution or some other statistical distribution we can write down the parameters for. 
 
+KDE is often useful for spatial analysis because we often want to measure the probability of observing a *case* at a given location, but don't know exactly what the statistical process that generated these data are. So, we can use a smoother to estimate the probability that a case will appear at any given location on the map. **Using the smoother lets us estimate this probability not only for the areas where we see cases, but for nearby areas as well.** And this is the reason these tools are so useful for making comparisons, as we'll see in a moment.
 
-<!-- ```{r, context="server"} -->
-<!-- case_data <- reactive({ -->
-<!--   if (input$ph == 0) { -->
-<!--     num_hotspot <- 0 -->
-<!--   } else { -->
-<!--     num_hotspot <- rbinom(1, input$n, input$ph) -->
-<!--   } -->
-<!--   background_df <- data.frame( -->
-<!--     x = runif(input$n-num_hotspot),  -->
-<!--     y = runif(input$n-num_hotspot)) -->
-<!--   background_df$hotspot <- 0 -->
+### Spatial *case-control* analysis
 
-<!--   print(background_df) -->
+A common design for studies in epidemiology is a *case-control* design in which we compare the attributes of cases to those of a randomly-selected set of controls (i.e. non-cases) to figure out how cases and controls differ, e.g. by age, sex, socioeconomic status, etc. 
 
-<!--   if (num_hotspot > 0) { -->
-<!--     hotspot_df <- data.frame( -->
-<!--       x = runif(num_hotspot, min = 0.5-input$hr, max = 0.5+input$hr),  -->
-<!--       y = runif(num_hotspot, min = 0.5-input$hr, max = 0.5+input$hr)) -->
-<!--     hotspot_df$hotspot <- 1 -->
-<!--     out_df <- rbind(background_df, hotspot_df) -->
-<!--   } else { -->
-<!--     out_df <- background_df -->
-<!--   } -->
+We can use this approach for spatial analysis as well, where the question we want to answer is: *is the spatial distribution of cases different than the spatial distribution of controls?* In other words, are cases more likely to appear in certain places, which may be suggestive of the clustering of risk in that area? We can then use smoothing tools like KDE to compare the proportion of cases that show up in a given location with the proportion of controls, and where that difference is large we often say that we have found a *hotspot*, i.e. a place where there are many more cases than controls. 
 
-<!--   out_df$hotspot <- as.factor(out_df$hotspot) -->
+### Test-drive
+To get a feel for what this looks like, let's generate some simple spatial *case-control* data. For starters, let's just assume that the underlying population density is the same everywhere. In this model, we will have two processes: One placing disease-free controls randomly in space, and one representing the distribution of *cases*. By shrinking the radius of the case distribution, you make the cases more concentrated in a given location, resulting in more of a *hotspot*. As the radius grows, the distribution of cases should look more like the distribution of controls:
 
-<!--   return(out_df) -->
-<!-- }) -->
+```{r, echo=FALSE}
+sidebarPanel(
+  sliderInput("n", "Total Controls:", min = 500, max = 5000, value = 1000),
+  sliderInput("nc", "Total Cases", min = 100 , max = 1000, value = 100),
+  sliderInput("hr", "Case 'hotspot' Radius", min = 0.1, max = 5, value = 1.5),
+  checkboxInput("points", "Show case and control locations", TRUE)
+)
+
+mainPanel(
+  plotOutput("dataPlot")
+  
+)
+```
 
 
-<!-- output$dataPlot <- renderPlotly({ -->
+```{r, context="server"}
+case_data <- reactive({
+  
+  ## Generate points on a 10x10 square
+  num_bg_pts <- input$n
+  background_pts <- data.frame(x = runif(num_bg_pts, 0, 10), 
+                               y = runif(num_bg_pts, 0, 10))
+  background_pts$case <- 0
+  hotspot_center <- 5
+  hotspot_sd <- 0.25
+  
+  ## Add in a hotspot centered in the middle
+  num_hs_pts <- input$nc
+  hotspot_pts <- data.frame(x = rtruncnorm(num_hs_pts, a= 0, b= 10, hotspot_center, input$hr),
+                            y = rtruncnorm(num_hs_pts, a = 0, b = 10,hotspot_center, input$hr))
+  hotspot_pts$case <- 1
+  
+  out_df <- rbind(background_pts, hotspot_pts)
+  
+  return(out_df)
+})
 
-<!--   g <- ggplot(case_data(), aes(x=x, y = y))  -->
-<!--   if (input$highlight == FALSE) { -->
-<!--     g <- g + geom_point()  -->
-<!--   } else { -->
-<!--     g <- g + geom_point(aes(colour=hotspot)) -->
-<!--   } -->
-<!--   coord_equal() -->
-<!--   return(ggplotly(g)) -->
-<!-- }) -->
+
+output$dataPlot <- renderPlot({
+  
+  g <- ggplot(case_data(), aes(x=x, y = y)) + geom_density2d_filled()
+  if (input$points == TRUE) {
+    g <- g + geom_point(aes(colour=case))
+  }
+  
+  g <- g + coord_equal() + theme(legend.position = "none") 
+  return(g)
+  
+})
+
+output$smoothAll <- renderPlot({
+  g <- ggplot(case_data(), aes(x=x,y=y)) + 
+    geom_density2d_filled() + theme(legend.position = "none")
+  return(g) 
+})
+
+output$smoothCC <- renderPlot({
+  g <- ggplot(case_data(), aes(x=x,y=y)) + 
+    geom_density2d_filled() + theme(legend.position = "none") + facet_wrap(~case)
+  return(g) 
+})
+
+random_case_data <- reactive({
+  df2<- case_data()
+  df2$case <- sample(df2$case)
+  return(df2)
+})
+
+output$smoothCCrandom <- renderPlot({
+  
+  g <- ggplot(random_case_data(), aes(x=x,y=y)) + 
+    geom_density2d_filled() + geom_point() + theme(legend.position = "none") + facet_wrap(~case)
+  return(g) 
+})
+
+output$diffPlotRandom <- renderPlot({
+  
+  df <- random_case_data()
+  hotspot_pts <- df %>% filter(case == 1)
+  background_pts <- df %>% filter(case == 0)
+  
+  ## Get differences between case and control
+  cs_smooth <- kde2ddf(hotspot_pts)
+  cl_smooth <- kde2ddf(background_pts)
+  cs_smooth$z<- cs_smooth$p - cl_smooth$p
+  g <- ggplot(cs_smooth, aes(x=x,y=y,z=z)) + geom_raster(aes(fill = z)) + coord_equal()
+  return(g)
+})
+
+output$diffHistRandom <- renderPlot({
+  df <- random_case_data()
+  hotspot_pts <- df %>% filter(case == 1)
+  background_pts <- df %>% filter(case == 0)
+  
+  cs_smooth <- kde2ddf(hotspot_pts)
+  cl_smooth <- kde2ddf(background_pts)
+  cs_smooth$z<- cs_smooth$p - cl_smooth$p
+  
+  return(hist(cs_smooth$z, breaks=100))
+  
+})
+```
+
+Try some different values and see when it's hard to see the hotspot with the naked eye when it's not. Use the toggle to turn on coloring for the cases to see how good your intuition is.
+
+### Do the cases and controls have the same distribution?
+
+We can go one step further and ask whether the cases and controls seem to have the same distribution by separating them out and plotting the spatial density of cases and controls, which you can see in the plot below:
 
 
-<!-- ``` -->
+```{r, echo=FALSE}
+fluidPage(
+  plotOutput("smoothCC"),
+)
+```
 
-<!-- Try some different values and see when it's hard to see the hotspot with the naked eye when it's not. Use the toggle to turn on coloring for the hotspot points to see how good your intuition is. -->
+```{r, context="server"}
+kde2ddf <- function(df, n = 50, lims = c(range(0:10),range(0:10))){
+  require(MASS)
+  ## This code turns the data into a df
+  dd <- kde2d(df$x, df$y, n= 100, lims = lims)
+  gr <- data.frame(with(dd, expand.grid(x,y)), as.vector(dd$z))
+  colnames(gr) <- c("x","y","z")
+  gr$p <- gr$z/sum(gr$z)
+  return(gr)
+}
+
+data_diff <- reactive({
+  df <- case_data()
+  hotspot_pts <- df %>% filter(case == 1)
+  background_pts <- df %>% filter(case == 0)
+  
+  ## Get differences between case and control
+  cs_smooth <- kde2ddf(hotspot_pts)
+  cl_smooth <- kde2ddf(background_pts)
+  cs_smooth$z<- cs_smooth$p - cl_smooth$p
+  
+  return(cs_smooth)
+})
+
+output$diffPlot <- renderPlot({
+  df <- data_diff()
+  g <- ggplot(df, aes(x=x,y=y,z=z)) + geom_raster(aes(fill = z)) + coord_equal() + theme(legend.position = "none")
+  return(g)
+})
+
+
+```
+
+We can ask this question a bit more formally by subtracting the density of *cases* at each point on the grid from the density of *controls*. In places where the probability of observing a case is much greater than observing a control, we should see a positive difference. But if there is no difference, the value should be close to zero. The figure below shows what happens when you subtract the *control* density above from the *case* density:
+
+```{r, echo=FALSE}
+fluidPage(
+  plotOutput("diffPlot"),
+)
+```
+
+Depending on the value of the sliders you set above, you might see a small or medium-sized region of increased risk, or if the radius of the case distribution is wide enough, you may see essentially no difference. But if we *do* see a pattern, how can we know whether it is actually meaningful?
+
+### Complete spatial randomness
+
+This is where the concept of complete spatial randomness (CSR) becomes useful. To figure out whether our pattern is reflective of more than just random noise, we can ask the question of whether what we see - in this case the spatial distribution of cases vs. controls - differs in any meaningful sense from a world in which the locations of the points in our dataset stay the same, but their status as cases and controls is scrambled. That way, when we separate out cases and controls and look at their spatial densities, we should see similar patterns, like the plots below:
+
+```{r, echo=FALSE}
+fluidPage(
+  plotOutput("smoothCCrandom"),
+)
+```
+
+```{r, echo=FALSE}
+fluidPage(
+  plotOutput("diffPlotRandom"),
+)
+```
+
+If we take a look at the histogram of these differences across all the locations, we can see that the mean is pretty close to zero, but there is a lot of variation:
+
+```{r, echo=FALSE}
+fluidPage(
+  plotOutput("diffHistRandom"),
+)
+```
+
+In the final section, we'll take advantage of this random variation to ask how robust the pattern we generated all the way back at the top actually is!
+
+### A permutation test
+
+To assess how robust our results are, we need to formalize our question into something like a statistical hypothesis. For this example, we're going to ask this question:
+
+"Which differences between case and control densities in our data are greater than 95% of the *largest differences* from 1000 random permutations of the case and control labels in our data."
+
+In other words, when you click the button below, we'll complete the shuffling step above 1000 times, calculate the largest difference for each one of these samples, and then highlight areas on our map where the difference is larger than almost all of the most extreme differences obtained randomly:
+
+```{r, echo=FALSE}
+
+
+sidebarPanel(
+  
+  actionButton("simulate", "Draw random permutations!"),
+  plotOutput("maxValsHist"),
+  textOutput("dataPVal")
+  
+)
+mainPanel(
+  plotOutput("hotspotPlot")
+)
+```
+
+```{r, context="server"}
+  waitress <- Waitress$new("#simulate", theme = "overlay", infinite = TRUE)
+
+  randomDist <- eventReactive(input$simulate, {
+    rdf <- case_data()
+    maxvals <- rep(0, 100)
+    waiter_show( # show the waiter
+      html = spin_fading_circles() # use a spinner
+    )
+    for (i in 1:500) {
+      rdf$case <- sample(rdf$case)
+      cs_smooth <- rdf %>% filter(case == 1) %>% kde2ddf()
+      cl_smooth <- rdf %>% filter(case == 0) %>% kde2ddf()
+      cs_smooth$z<- cs_smooth$p - cl_smooth$p
+      maxvals[i] <- max(cs_smooth$z)
+
+    }
+    waiter_hide()
+    
+    return(list(max = maxvals, data = data_diff()))
+
+  }, ignoreNULL = TRUE, ignoreInit=TRUE)
+  
+  output$maxValsHist <- renderPlot({
+    dd <- randomDist()
+    df <- data.frame(x = dd$max)
+    g <- ggplot(df, aes(x)) + geom_histogram()
+    return(g)
+  })
+  
+  randomEcdf <- reactive({
+    z <- randomDist()
+    return(ecdf(z$max))
+  })
+  
+  output$dataPVal <- renderText({
+    z <- randomDist()
+    dd <- randomEcdf()
+    p <- dd(z$data$z)
+    df <- z$data
+    df$p <- p
+    df$hot <- 0
+    df$hot[df$p >= 0.95] <-1
+    pct_hot <- round(100*sum(df$hot)/nrow(df),0)
+    
+    return(paste0(pct_hot, "% of locations have more cases than expected by chance"))
+  })
+  
+  output$hotspotPlot <- renderPlot({
+        waitress$start()
+
+    z <- randomDist()
+    datadf <- case_data()
+    dd <- randomEcdf()
+    p <- dd(z$data$z)
+    df <- z$data
+    df$p <- p
+    df$hot <- 0
+    df$hot[df$p >= 0.95] <-1
+    
+    g <- ggplot() + geom_raster(data=df,aes(x=x,y=y,fill=hot)) + geom_point(data=datadf,aes(x=x,y=y, shape=as.factor(case)))
+        waitress$close()
+    return(g)
+    
+  })
+  
+```
