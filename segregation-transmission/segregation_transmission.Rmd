@@ -1,5 +1,5 @@
 ---
-title: "Residential segregation and infectious disease transmission"
+title: "Residential Segregation and Infectious Disease Transmission"
 output: 
   learnr::tutorial
 runtime: shiny_prerendered
@@ -10,6 +10,7 @@ require(deSolve)
 require(dplyr)
 require(DiagrammeR)
 require(flexdashboard)
+require(plotly)
 
 two.group.sir.model <- function(t, x, params) {
   S1 <- x[1]
@@ -129,7 +130,6 @@ fluidPage(
     column(4,
            
            h4("Model Parameters"),
-           
            sliderInput(
              "p1a",
              "Proportion of population in minority group",
@@ -145,14 +145,14 @@ fluidPage(
              max = 1,
              value = 0.1
            ),
-           actionButton("simulate", "Draw contacts!")
+           # actionButton("simulate", "Draw contacts!")
            
     ),
     
     column(8,
            tabsetPanel(
-             tabPanel("Minority Group", plotOutput("contactA")),
-             tabPanel("Majority Group", plotOutput("contactB"))
+             tabPanel("Minority Group", plotlyOutput("contactA")),
+             tabPanel("Majority Group", plotlyOutput("contactB"))
            )
     )),
   
@@ -330,19 +330,21 @@ modelRun <- reactive({
 modelFigures <- reactive({
   params <- modelPars()
   require(ggplot2)
+  require(plotly)
   p1 <- params[["p1"]]
   p2 <- 1-p1
-  g <- ggplot(modelRun(), aes(x=time)) + geom_line(aes(y = 1e5*R1), colour = "green") + geom_line(aes(y=1e5*R2), colour = "red") + xlab("Day") + 
+  g <- ggplot(modelRun(), aes(x=time)) + geom_line(aes(y = 1e5*R1), colour = "blue") + geom_line(aes(y=1e5*R2), colour = "red") + xlab("Day") + 
     geom_line(aes(y=1e5*(R1+R2))) + 
     ylab("Cumulative number infected") + 
     ylim(0,1e5) +
-    geom_hline(yintercept = 1e5*p1, linetype = "dashed", colour = "green") +
+    geom_hline(yintercept = 1e5*p1, linetype = "dashed", colour = "blue") +
     geom_hline(yintercept = 1e5*p2, linetype = "dashed", colour = "red") + 
     theme_bw()
-  return(g)
+  p <- ggplotly(g)
+  p
 })
 
-output$incidence <- renderPlot({
+output$incidence <- renderPlotly({
   
   return(modelFigures())
   
@@ -352,9 +354,10 @@ isoVal <- reactive({
   
 })
 
-contactA <- eventReactive(input$simulate,{
+contactA <- eventReactive(list(input$p1a, input$taua),{
   require(packcircles)
   require(ggplot2)
+  require(plotly)
   num_contacts <- 150
   intensity <-1# input$rhoa
   p1 <- input$p1a
@@ -404,14 +407,14 @@ contactA <- eventReactive(input$simulate,{
     geom_polygon(aes(fill=group, colour=group),alpha=0.3) +
     coord_equal(xlim=limits, ylim=limits) + 
     scale_fill_manual(breaks = c("1", "2"), 
-                      values=c("red", "green")) + 
+                      values=c("red", "blue")) + 
     theme(legend.position = "none")
-  
-  return(g)
+  p <- ggplotly(g)
+  p
   
 }, ignoreNULL=FALSE)
 
-output$contactA <- renderPlot({
+output$contactA <- renderPlotly({
   return(contactA())
 })
 
@@ -442,9 +445,10 @@ output$dissimilarity <- renderText({
 })
 
 
-contactB <- eventReactive(input$simulate, {
+contactB <- eventReactive(list(input$p1a, input$taua), {
   require(packcircles)
   require(ggplot2)
+  require(plotly)
   num_contacts <- 150
   intensity <- 1 #input$rhoa
   p1 <- input$p1a
@@ -486,14 +490,14 @@ contactB <- eventReactive(input$simulate, {
     geom_polygon(aes(fill=group, colour=group),alpha=0.3) +
     coord_equal(xlim=limits, ylim=limits) + 
     scale_fill_manual(breaks = c("1", "2"), 
-                      values=c("red", "green")) + 
+                      values=c("red", "blue")) + 
     theme(legend.position = "none")
-  
-  return(g)
+  p <- ggplotly(g)
+  p
   
 }, ignoreNULL=FALSE)
 
-output$contactB <- renderPlot({
+output$contactB <- renderPlotly({
   return(contactB())
 })
 
