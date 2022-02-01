@@ -30,7 +30,7 @@ globalmoran <- moran.test(data$unvax,w)
 lisa <- localmoran(data$unvax,w)  #calculate the local moran's I
 
 data$scaled_unvax <- scale(data$unvax)[,1]  #scaled unvax
-data$lag_scaled_unvax <-  lag.listw(w, data$unvax) #lagged variable
+data$lag_scaled_unvax <-  lag.listw(w, data$scaled_unvax) #lagged variable
 
 ##Get significance
 data$p <- lisa[,5]
