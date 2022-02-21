@@ -1,0 +1,95 @@
+/* main styling comes from bootswatch lux theme: https://bootswatch.com/lux/ */
+
+/* POSITION THE BODY AND GIVE IT A HEIGHT */
+body{
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* LESS PADDING ON NAVBAR */
+.navbar{
+  padding: 5px;
+}
+
+/* CENTER ITEMS IN HEADER */
+.navbar-header{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+/* POSITION AND PAD THE NAVBAR LOGO */
+.navbar-logo{
+  padding-right: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+/* SIZE THE NAVBAR BRAND IMAGE AND POSITION IT */
+.navbrand-img{
+  height: 45px;
+  margin: 0;
+  padding: 0px;
+  vertical-align: middle;
+}
+
+/* ADJUST PADDING FOR H2 ON MAIN PAGE */
+h2{
+  padding: 0px 10px 0px 10px;
+  font-size: 3.8rem;
+}
+
+/* MAKE ABOUT TEXT ON MAIN PAGE ITALICIZED AND SMALLER */
+.about{
+  font-style: oblique;
+  font-size: 12px;
+}
+
+/* MAKE BANNER IMAGE ON FRONT PAGE 100% WIDTH */
+.banner{
+  width: 100%;
+}
+
+/* GIVE POSITION STYLING TO ABOUT PAGE MINI-MODULES */
+.about-site{
+  font-size: 1rem;
+}
+
+.about-h{
+  padding-top:0;
+  margin-top:0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+/* FIGURES POSITIONED TO CENTER, FIGURE CAPTIONS CENTERED AND STYLED */
+figure{
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+figcaption{
+  font-style: italic !important;
+  color: darkgrey !important;
+}
+
+/* CHANGE FIGURE IMAGE WIDTH AND HEIGHTS */
+.figure-img{
+  max-width: 100%;
+  max-height: 500px;
+}
+
+/* STORY DIV POSITIONS FIGURES VERTICALLY CENTER IN STORYBOARD PAGES */
+.story-div{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

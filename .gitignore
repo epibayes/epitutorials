@@ -1,4 +1,4 @@
-*.html
 rsconnect/
 .DS_Store
 .snakemake
+.Rhistory
