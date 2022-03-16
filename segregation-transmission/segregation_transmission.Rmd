@@ -261,6 +261,13 @@ For vaccine-preventable diseases, it could be the case that individuals in the m
 
 ## Simulating Transmission
 ### Try it Out
+
+Try changing different values of the slider to update the output. 
+
+In the model, the red line represents the total number of infections in the majority group, the blue line represents the total number of infections in the minority group, and the black line is the total number of infections overall out of a population of 100,000 individuals. 
+
+The red and blue dashed lines show the maximum number of possible infections for the majority and minority groups, respectively. 
+
 The value "Overall $R_{0}$" is the **basic reproduction number**, i.e. the average number of individuals infected by single case in a totally susceptible population. 
 
 **This value is important:**
@@ -268,11 +275,6 @@ The value "Overall $R_{0}$" is the **basic reproduction number**, i.e. the avera
 - If $R_{0} > 1$, we should expect to see outbreaks. 
 - If $R_{0} < 1$, we should expect transmission to fizzle out. 
 
-Try changing different values of the slider to update the output. 
-
-In the model, the red line represents the total number of infections in the majority group, the blue line represents the total number of infections in the minority group, and the black line is the total number of infections overall out of a population of 100,000 individuals. 
-
-The red and blue dashed lines show the maximum number of possible infections for the majority and minority groups, respectively. 
 
 ```{r makegrid, echo=FALSE}
 sidebarLayout(
@@ -353,15 +355,15 @@ sidebarLayout(
 )
 ```
 
-**Discussion Questions**
+<h3> Discussion Questions </h3>
 
-The text below the plot shows the final proportion of the population of each group that was infected at the end of the simulation, as well as the *relative* risk of infection for individuals in the minority vs. majority group. Use this information as well as your observations from running the transmission model with different input parameter values to think about the following questions:
+The text below the plot shows the final proportion of the population of each group that was infected at the end of the simulation, as well as the **relative** risk of infection for individuals in the minority vs. majority group. Use this information as well as your observations from running the transmission model with different input parameter values to think about the following questions:
 
-1. What seems to be the most important factor in driving *inequality* in the number of infections at the end of the outbreak?
+1. What seems to be the most important factor in driving **inequality** in the number of infections at the end of the outbreak?
 
-2. Is there a relationship between *infectiousness* and inequality? In other words, is inequality in infection risk greater or lower at high levels of infectiousness?
+2. Is there a relationship between **infectiousness** and **inequality**? In other words, is inequality in infection risk greater or lower at high levels of infectiousness?
 
-3. What impact does the susceptibility of the minority group have on population-level patterns of disease? Are there situations in which the minority group may have very high rates of infection, but the population as a whole does not? When does this happen?
+3. What impact does the **susceptibility** of the minority group have on population-level patterns of disease? Are there situations in which the minority group may have very high rates of infection, but the population as a whole does not? When does this happen?
 
 ```{r, context="server"}
 
