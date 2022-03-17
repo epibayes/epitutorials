@@ -414,8 +414,8 @@ modelFigures <- reactive({
     geom_hline(yintercept = 1e5*p1, linetype = "dashed", colour = "blue") +
     geom_hline(yintercept = 1e5*p2, linetype = "dashed", colour = "red") + 
     theme_bw() +
-    theme(legend.position = "left") +
-    scale_color_manual(labels=c("Total # Infections in Maj. Group", "Total # Infections in Min. Group", "Overall Total Infections /1,000"), values=c("blue","red","black"))
+    theme(legend.position = "left") 
+    # + scale_color_manual(labels=c("Total # Infections in Maj. Group", "Total # Infections in Min. Group", "Overall Total Infections /1,000"), values=c("blue","red","black"))
   
   p <- ggplotly(g)
   
