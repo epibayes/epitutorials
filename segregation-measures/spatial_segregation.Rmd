@@ -1,11 +1,10 @@
 ---
-title: "Simulating Segregation"
-output: 
-  learnr::tutorial
+title: "Global Clustering"
+output: learnr::tutorial
 runtime: shiny_prerendered
 ---
 
-## Measures of spatial clustering and dispersion
+## Measuring spatial clustering with areal data
 
 Let's briefly review some key metrics of spatial clustering that are often used in epidemiologic research.
 
@@ -13,41 +12,49 @@ Let's briefly review some key metrics of spatial clustering that are often used 
 
 We will use the following notation throughout:
 
+- $A$ = Total number of majority group members.
+
+- $B$ = Total number of minority group members (i.e. $B$ < $A$).
+
 - $a_i$ = Number of majority group members in area $i$.
 
 - $b_i$ = Number of minority group members in area $i$.
-
-- $A$ = Total number of majority members.
-
-- $B$ = Total number of minority members.
 
 - $t_i$ = Total population of area $i$ (i.e. $a_i + b_i$).
 
 - $N$ = Total overall population size (i.e. $A + B$).
 
-### Isolation
+## Isolation
 
-If we have two groups $a$ and $b$, which $b$ is a minority group, i.e. $N_{b} < N_{a}$, isolation measures the proportion of the contacts among minority group members that are within-group. 
+If we have two groups $a$ and $b$, which $b$ is a minority group, i.e. $N_{b} < N_{a}$, isolation measures the *proportion of the contacts among minority group members* that are within-group. 
 
 Isolation can be calculated as:
 
 $$
 \sum_{i}^{N}\left[\left(\frac{b_i}{B}\right)\left(\frac{b_i}{t_i}\right)\right]
 $$
-
-In `R` we can write this as:
+In `R` we can write this as, where $b$ is a vector where each value is the number of *minority* group members in the i-th area and $a$ is the number of majority-group members in each area:
 
 ```{r eval=FALSE}
-isolation <- function(x,n) {
-  x <- x[n > 0]
-  n <- n[n > 0]
-  total_a <- sum(x)
-  d <- sum((x/total_a)*(x/n))
+isolation <- function(a,b) {
+  t <- a + b
+  a <- a[n > 0]
+  b <- b[n > 0]
+  total_b <- sum(b)
+  d <- sum((b/total_a)*(t/n))
   return(d)
 }
 ```
 
-### Dissimilarity
+### Interaction
+
+Interaction quantifies the inverse of isolation: what *proportion* of the minority group's contacts are with the *majority* group:
+
+$$
+\sum_{i}^{N}\left[\left(\frac{b_i}{B}\right)\left(\frac{a_i}{t_i}\right)\right]
+$$
+
+## Dissimilarity
 
 Another common measure of clustering or segregation is the index of *dissimilarity*. This takes on values from 0 to 1 and indicates the proportion of one of the two groups that would have to move to result in a distribution matching the population-level proportions of each group. 
 
@@ -60,15 +67,15 @@ Each term inside the vertical bars (indicating absolute value), i.e. $a_i/A$, co
 This is also easy to write out in `R`:
 
 ```{r, eval=FALSE}
-dissimilarity <- function(x,n) {
+dissimilarity <- function(a,b) {
   total_a <- sum(x)
   total_b <- sum(n-x)
-  d <- 0.5*sum(abs((x/total_a) - ((n-x)/total_b)))
+  d <- 0.5*sum(abs((a/total_a) - ((b)/total_b)))
   return(d)
 }
 ```
 
-### Moran's I
+## Moran's I
 
 The prior two measures are *aspatial* in the sense that it doesn't matter which places are close and which are not. You can tell this is the case because the equations for each includes nothing about *distance* between locations or *adjacency*, i.e. are they touching each other at any point. To calculate Moran's I, we'll introduce a couple of new items of notation.
 
@@ -86,18 +93,32 @@ You can see here that instead of evaluating individual cells one at a time, we l
 
 ![](https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Checkerboard_pattern.svg/250px-Checkerboard_pattern.svg.png)
 
-Finally a value of 0 indicates a fully random distribution, analogous to a zero in the index of dissimilarity.
+Finally, a value of 0 indicates a fully random distribution, analogous to a zero in the index of dissimilarity.
 
-## Simulating some data
+## Measuring clustering of non-vaccination
 
-Let's start with a simple scenario in which we have city in which individuals live on *blocks* nested within *neighborhoods*, which are themselves nested within *quadrants* of a city. Finally, the city has two halves - an East and West side - each of which contains 2 quadrants.
+In this example, we'll look at different ways of measuring the concentration of unvaccinated children into different neighborhoods of a hypothetical city. Clustering of non-vaccinated individuals may indicate an elevated risk of outbreaks of preventible childhood infections, such as measles. An ideal measure of the risk associated with this clustering would map well onto our *qualitative* understanding of the process of infectious disease transmission.
+
+To explore this question, we'll start with a simple scenario in which we have city in which each individual lives in 1 of 64 *blocks* that are divided into groups of 32, half on the high-risk east side and half on the lower-risk west side.
+
+In addition to the east and west side, let's break the city down further into:
+
+1. Four  *quadrants*, which each contain
+2. Four *neighborhoods* (Total Neighborhoods = 16), which contain
+3. Four *blocks* each (Total Blocks = 16)
+
+Within each of the quadrant and neighborhood, there is one *high risk* area, corresponding to the bottom-left neighborhood or block, respectively. You can control the odds of non-vaccination for children living in the high-risk areas as compared to their enclosing neighborhoods and blocks using the sliders below the figure.
 
 
 ```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+library(bslib)
 require(dplyr)
 require(ggplot2)
 require(spdep)
+require(shiny)
+require(flexdashboard)
 require(segregation)
+
 
 source("src/segregation.R")
 
@@ -149,17 +170,17 @@ proportion_hist <- function(df) {
   g <- ggplot(df, aes(x=p)) +
     geom_histogram(binwidth=0.005) +
     xlab("Proportion Unvaccinated") +
-    ylab("N")
+    ylab("Number of Blocks")
   
   return(g)
 }
 
 ## Define a function to calculate Moran's I for an 
 ## arbitrary vector of values on a square grid
-morans_grid <- function(d, x) {
+morans_grid <- function(d, ntype, x) {
   require(spdep)
   
-  neighbors <- nb2listw(cell2nb(d,d))
+  neighbors <- nb2listw(cell2nb(d,d, type=ntype))
   
   return(moran(x, neighbors, 1, 1))
   
@@ -173,8 +194,21 @@ isolation <- function(x,n) {
   return(d)
 }
 
+interaction <- function(x,n) {
+  x <- x[n > 0]
+  n <- n[n > 0]
+  total_a <- sum(x)
+  d <- sum((x/total_a)*((n-x)/n))
+  return(d)
+}
+
+
 theil <- function(df, top_unit) {
   segregation::mutual_total(df, "vaccinated", top_unit, weight = "n" )[2,2]
+}
+
+theil_within <- function(df, top_unit, inside_unit) {
+  segregation::mutual_total(df, "vaccinated", inside_unit, within=top_unit, weight = "n" )[2,2]
 }
 
 
@@ -190,57 +224,88 @@ sidebarLayout(
     h4("Model Parameters"),
     sliderInput(
       "punvax",
-      "Baseline proportion Unvaccinated",
-      min = 0.05,
+      "Proportion unvaccinated in lowest risk area",
+      min = 0.01,
       max = 0.5,
       value = 0.1
     ),
     sliderInput(
       "hor",
-      "Left  vs. right odds ratio",
-      min = 1,
-      max = 5,
-      value = 2
+      "High risk (left side) odds ratio",
+      min = 1.01,
+      max = 10.0,
+      value = 1.1
     ),
-     sliderInput(
-      "qor",
-      "High-risk quadrant odds ratio",
-      min = 1,
-      max = 5,
-      value = 1
-    ),
-        sliderInput(
-      "nor",
-      "High-risk neighborhood odds ratio",
-      min = 1,
-      max = 5,
-      value = 1
-    ),
-    sliderInput("bor",
-                "High-risk block odds ratio", min = 1, max = 5, value = 1),
-    br(),
-    h4("Metrics"),
-    textOutput("avgp"),
-    textOutput("iso"),
-    textOutput("dissim"),
-    textOutput("morans"),
     
-    br(),
-    br(),
-    h4("Theil Index"),
-    textOutput("blocktheil"),
-    textOutput("neightheil"),
-    textOutput("quadtheil"),
-      textOutput("halftheil")
     
+  radioButtons("ntype", "Neighbor Type:",
+               c("Rook" = "rook",
+                 "Queen" = "queen")),
   ),
   
   mainPanel(tabsetPanel(
     type = "tabs",
     tabPanel("Map", plotOutput("initialPlot")),
     tabPanel("Population", plotOutput("proportionNonVax"))
-  ))
-)
+  )))
+```
+
+
+```{r, statsgrid, echo=FALSE}
+
+wellPanel(
+  fluidRow(
+    column(4,
+         sliderInput(
+      "qor",
+      "High-risk quadrant odds ratio",
+      min = 1.0,
+      max = 10.0,
+      value = 1.0
+    )),
+    column(4,
+               sliderInput(
+      "nor",
+      "High-risk neighborhood odds ratio",
+      min = 1.0,
+      max = 10.0,
+      value = 1
+    )),
+
+    column(4, 
+           sliderInput("bor",
+                "High-risk block odds ratio", min = 1.0, max = 10.0, value = 1.0)
+    )
+    
+  ))  
+
+  fluidRow(
+    column(3,
+           h4("% Unvaccinated"),
+          gaugeOutput("unvaxgauge")
+           ),
+    column(3,
+           h4("Dissimilarity"),
+    gaugeOutput("dissimgauge")),
+     column(3,
+           h4("Isolation"),
+    gaugeOutput("isogauge")),
+    column(3,
+               h4("Moran's I"),
+    gaugeOutput("morangauge"))
+  )
+  
+  fluidRow(
+    column(3,
+           h4("Theil Index"),
+           gaugeOutput("theilgauge")),
+      column(3,
+               h4("Theil Decomposition"),
+    textOutput("quadtheil"),
+    textOutput("withinquadtheil"),
+      )
+  )
+  
 ```
 
 
