@@ -88,7 +88,7 @@ output$quadtheil <- renderText({
 output$withinquadtheil <- renderText({
   ldf <- neighborhood_df_long()
   block_h <- 100*theil_within(ldf, "quadrant", "block") / (theil(ldf, "quadrant") + theil_within(ldf, "quadrant", "block"))
-  paste0("Within quadrant:", round(block_h,0),"%")
+  paste0("Within Quadrant:", round(block_h,0),"%")
 }
 )
 
@@ -143,7 +143,8 @@ output$morangauge <- renderGauge({
 output$unvaxgauge <- renderGauge({
   gauge(unvaxval(),
         min = 0, 
-        max = 100)
+        max = 100,
+        symbol = "%")
 })
 
 
