@@ -2,10 +2,9 @@
 title: "Global Clustering"
 output: 
   learnr::tutorial:
-    # progressive: true
+   progressive: true
 runtime: shiny_prerendered
-description: >
-  Learn about spatial clustering metrics often used in epidemiological research
+description: "Learn about spatial clustering metrics often used in epidemiological research"
 ---
 
 ```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
@@ -18,7 +17,6 @@ require(flexdashboard)
 #require(segregation)
 
 
-#source("src/segregation.R")
 
 ##START OF SEGREGATION CODE##
 multilevel_dataset <- function() {
@@ -157,6 +155,7 @@ grid_plot <- function(df) {
   
   g <- ggplot(df, aes(x = x, y = y, fill = p)) + 
     geom_raster() + 
+    scale_fill_continuous(limits=c(0,1)) +
     theme_bw() + 
     coord_equal() +
     guides(fill = guide_legend(title = "Proportion Unvaccinated")) +
