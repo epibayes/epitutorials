@@ -156,7 +156,7 @@ grid_plot <- function(df) {
   
   g <- ggplot(df, aes(x = x, y = y, fill = p)) + 
     geom_raster() + 
-    scale_fill_continuous_sequential(palette="Blues 3", limits=c(0,1)) +
+    scale_fill_continuous_sequential(palette="Pu Bu", limits=c(0,1)) +
     theme_bw() + 
     coord_equal() +
     guides(fill = guide_legend(title = "Proportion Unvaccinated")) +
