@@ -14,12 +14,10 @@ require(ggplot2)
 require(spdep)
 require(shiny)
 require(flexdashboard)
-require(colorspace)
 require(plotly)
+require(colorspace)
+
 #require(segregation)
-
-
-
 ##START OF SEGREGATION CODE##
 multilevel_dataset <- function() {
   
@@ -59,10 +57,8 @@ multilevel_dataset <- function() {
   
   return(quadrants)
 }
-
 risk_frame_fixed <- function(df, n, avg = 0.05, nor = 1 , bor = 1, qor = 1) {
   
-
   or <- exp(df$high_risk_n*log(nor) + df$high_risk_b*log(bor) + df$high_risk_q*log(qor))
   a <- (nrow(df)*avg)/sum(or)
   p <- a*or
@@ -71,29 +67,22 @@ risk_frame_fixed <- function(df, n, avg = 0.05, nor = 1 , bor = 1, qor = 1) {
  
   return(p) 
 }
-
 risk_frame_logit <- function(df, alpha = 0.05, hor = 1, nor = 1 , bor = 1, qor = 1) {
   
   
   p <- plogis(qlogis(alpha) + df$high_risk_h*log(hor) + df$high_risk_n*log(nor) + df$high_risk_b*log(bor) + df$high_risk_q*log(qor))
-
   
   p[p > 1] <- 1
   
   return(p) 
 }
-
 draw_risk_frame <- function(alpha = 0.05, hor = 1, nor=1, bor=1, qor=1) {
   
   df <- multilevel_dataset()
-
   df$p <- risk_frame_logit(df, alpha, hor, nor, bor, qor)
   df$n <- rbinom(nrow(df), 1000, df$p)
   return(df)
-
 }
-
-
 long_risk_frame <- function(df) {
   
   d1 <- df
@@ -105,7 +94,6 @@ long_risk_frame <- function(df) {
   d2$n <- 1000-d1$n
   
   
-
   
   dd <- rbind(d1, d2)
   ddd <- dd
@@ -119,15 +107,12 @@ long_risk_frame <- function(df) {
   return(dd)
 }
 ##END OF SEGREGATION CODE##
-
 dissimilarity <- function(x,n) {
   total_a <- sum(x)
   total_b <- sum(n-x)
   d <- 0.5*sum(abs((x/total_a) - ((n-x)/total_b)))
   return(d)
 }
-
-
 half_grid <- function(d, ratio, N, p) {
   
   ## Sample number of unvaccinated in total population
@@ -152,20 +137,12 @@ half_grid <- function(d, ratio, N, p) {
   return(neighborhood_df)
   
 }
-
 grid_plot <- function(df) {
   
   g <- ggplot(df, aes(x = x, y = y, fill = p)) + 
-<<<<<<< HEAD
     geom_tile() + 
-=======
     geom_raster() + 
-<<<<<<< HEAD
-    scale_fill_continuous_sequential(palette="Pu Bu", limits=c(0,1)) +
-=======
->>>>>>> 361b1d779241f0d9a389cb4bde3b7a853e048372
-    scale_fill_continuous(limits=c(0,1)) +
->>>>>>> b3d6ba88e786d30949a30638970ef8c99dcb7d18
+    scale_fill_continuous_sequential(palette="Blues 3", limits=c(0,1)) +
     theme_bw() + 
     coord_equal() +
     guides(fill = guide_legend(title = "Proportion Unvaccinated")) +
@@ -176,17 +153,13 @@ grid_plot <- function(df) {
   
   return(ggplotly(g))
 }
-
 proportion_hist <- function(df) {
   g <- ggplot(df, aes(x=p)) +
     geom_histogram(binwidth=0.005) +
     xlab("Proportion Unvaccinated") +
     ylab("Number of Blocks")
-
   return(g)
 }
-
-
 ## Define a function to calculate Moran's I for an 
 ## arbitrary vector of values on a square grid
 morans_grid <- function(d, ntype, x) {
@@ -197,7 +170,6 @@ morans_grid <- function(d, ntype, x) {
   return(moran(x, neighbors, 1, 1))
   
 }
-
 isolation <- function(x,n) {
   x <- x[n > 0]
   n <- n[n > 0]
@@ -205,7 +177,6 @@ isolation <- function(x,n) {
   d <- sum((x/total_a)*(x/n))
   return(d)
 }
-
 interaction <- function(x,n) {
   x <- x[n > 0]
   n <- n[n > 0]
@@ -213,17 +184,12 @@ interaction <- function(x,n) {
   d <- sum((x/total_a)*((n-x)/n))
   return(d)
 }
-
-
 theil <- function(df, top_unit) {
   segregation::mutual_total(df, "vaccinated", top_unit, weight = "n" )[2,2]
 }
-
 theil_within <- function(df, top_unit, inside_unit) {
   segregation::mutual_total(df, "vaccinated", inside_unit, within=top_unit, weight = "n" )[2,2]
 }
-
-
 ## Size of the total population
 total_pop <- 100000
 d <- 8
@@ -411,13 +377,11 @@ sidebarLayout(
   #   tabPanel("Map", plotlyOutput("initialPlot")),
   #   tabPanel("Population", plotOutput("proportionNonVax"))
   # )))
-
   mainPanel(plotlyOutput("initialPlot")))
 ```
 
 
 ```{r, statsgrid, echo=FALSE}
-
 wellPanel(
   fluidRow(
     column(12,
@@ -456,7 +420,6 @@ wellPanel(
            )),
   )
 )
-
 fluidRow(column(
   12,
   fluidRow(
@@ -488,6 +451,4 @@ fluidRow(column(
 ```
 
 ```{r, context="server", code=readLines("src/server.R")}
-
 ```
-
