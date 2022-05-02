@@ -1,5 +1,5 @@
 ---
-title: "Estimating treatment effects from spatial data"
+title: "Using Spatial Data to Estimate the Effects of Treatment"
 output: 
   learnr::tutorial:
     progressive: true
