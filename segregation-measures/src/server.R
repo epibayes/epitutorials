@@ -11,7 +11,7 @@ neighborhood_df_long <- reactive({
   long_risk_frame(neighborhood_df())
 })
 
-output$initialPlot <- renderPlot({
+output$initialPlot <- renderPlotly({
   grid_plot(neighborhood_df())
 })
 
