@@ -155,7 +155,11 @@ half_grid <- function(d, ratio, N, p) {
 grid_plot <- function(df) {
   
   g <- ggplot(df, aes(x = x, y = y, fill = p)) + 
+<<<<<<< HEAD
     geom_tile() + 
+=======
+    geom_raster() + 
+>>>>>>> 361b1d779241f0d9a389cb4bde3b7a853e048372
     scale_fill_continuous(limits=c(0,1)) +
     theme_bw() + 
     coord_equal() +
