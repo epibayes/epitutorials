@@ -83,7 +83,17 @@ long_risk_frame <- function(df) {
   d2$vaccinated <- 0
   d2$n <- 1000-d1$n
   
+  
+
+  
   dd <- rbind(d1, d2)
+  ddd <- dd
+  ddd$block <- paste0(dd$block,"_",dd$neighborhood,"_",dd$quadrant, "_", dd$high_risk_h)
+  ddd$neighborhood <- paste0(dd$neighborhood,"_",dd$quadrant, "_", dd$high_risk_h)
+  dd <- ddd
+  dd$quadrant <- as.factor(dd$quadrant)
+  dd$vaccinated <- as.factor(dd$vaccinated)
+  dd$half <- as.factor(dd$high_risk_h)
   
   return(dd)
 }

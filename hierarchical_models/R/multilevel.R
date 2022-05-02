@@ -3,7 +3,7 @@ require(faux)
 require(shiny)
 require(dplyr)
 require(ggplot2)
-require(lme4)
+require(nlme)
 
 ## Simulate from a multilevel model
 
@@ -128,12 +128,12 @@ histogramServer <- function(id) {
   
   multilevelModel <- reactive({
     if (input$adjust == TRUE){
-      f <- y ~ income + walkability + (1 | neighborhood)
+      f <- y ~ income + walkability 
     } else {
-      f <- y ~ income + (1 | neighborhood)
+      f <- y ~ income 
     }
+    return(nlme::lme(f, random = ~ 1 | neighborhood, data = individualData()))
     
-    return(lmer(f, data = individualData()))
   })
   
   selectedModel <- reactive({

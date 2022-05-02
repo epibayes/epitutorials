@@ -1,8 +1,12 @@
 ---
-title: "Residential segregation and infectious disease transmission"
+title: "Residential Segregation and Infectious Disease Transmission"
 output: 
-  learnr::tutorial
+  learnr::tutorial:
+    progressive: true
+    # allow_skip: true
 runtime: shiny_prerendered
+description: >
+  Learn about how residential segregation impacts infection risk.
 ---
 
 ```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
@@ -10,6 +14,7 @@ require(deSolve)
 require(dplyr)
 require(DiagrammeR)
 require(flexdashboard)
+require(plotly)
 
 two.group.sir.model <- function(t, x, params) {
   S1 <- x[1]
@@ -20,8 +25,6 @@ two.group.sir.model <- function(t, x, params) {
   I2 <- x[5]
   R2 <- x[6]
   p2 <- 1-p1
-  
-  
   
   ## now extract the parameters
   beta <- params["beta"]
@@ -56,83 +59,99 @@ two.group.sir.model <- function(t, x, params) {
 
 ```
 
-## How does residential segregation impact infection risk?
+## Introduction
+### How Does Residential Segregation Impact Infection Risk?
 
-In this tutorial, we're going to walk through ways in which patterns of residential segregation may impact infectious disease risk through two different pathways, contact and susceptibility, and how that is likely to impact spatial and socioeconomic patterns of infection incidence. 
+In this tutorial, we're going to walk through ways in which patterns of residential segregation may impact infectious disease risk through two different pathways, **contact and susceptibility**, and how that is likely to impact spatial and socioeconomic patterns of infection incidence. 
 
-To do this, we'll build on the framework developed by [Acevedo-Garcia (2000)](https://www.sciencedirect.com/science/article/pii/S0277953600000162) to relate the *social* processes governing and generating residential segregation to the *biological* manifestations of disease.
+To do this, we'll build on the framework developed by **[Acevedo-Garcia (2000)](https://www.sciencedirect.com/science/article/pii/S0277953600000162)** to relate the **social processes** governing and generating residential segregation to the **biological manifestations** of disease.
 
-Specifically, we'll first walk through the hypothesized relationships between segregation and patterns of contact. We'll then take a hands-on approach to understanding the way different intensities and modalities of segregation impact patterns of *within* and *between-group* contact. Finally, we'll put these contact patterns into an infectious disease *transmission model* and look at their implications for risk, both at the population and group level.
+Specifically, we'll...
+
+- Walk through the hypothesized relationships between segregation and patterns of contact;
+
+- Take a hands-on approach to understanding the way different intensities and modalities of segregation **impact patterns** of *within* and *between-group* contact; and finally,
+
+- Put these contact patterns into an infectious disease **transmission model** and look at their implications for risk, both at the population and group level.
 
 
-## A Framework
+## A Modeling Framework
+### Acevedo-Garcia's Model
 
-Acevedo-Garcia (2000) presented a helpful model of the relationship between residential segregation and infectious disease risk. Specifically, she identified a number of different *measures* of the intensity of segregation and hypothesized about their potential relationships to infection risk. She focused on Tuberculosis, but we can think of this as a more general approach.
+Acevedo-Garcia (2000) presented a helpful model of the **relationship between residential segregation and infectious disease risk.** 
 
-In this model, the world is broken down into two groups, majority and minority. Typically, residential segregation can be thought of in racial or socioeconomic terms. But at the end of the day, all of the insights about segregation are applicable to thinking about patterns of contact and risk in any setting where you have two interacting populations, and differing rates of *within* and *between-group* contact. 
+Specifically, she identified a number of different **measures of the intensity of segregation** and hypothesized about their potential relationships to infection risk. She focused on Tuberculosis, but we can think of this as a more general approach.
 
-It's also important to remember that these processes occur in many contexts and not only along the lines we typically think of as characterizing residential segregation in the United States. For example, in many countries, recent arrivals to a city from the countryside may live in shantytowns that induce higher rates of within-group contact as well as a higher intensity of exposure due to local environmental and social factors.
+### Majority-Minority Break
 
-```{r, fig.align="center", echo=FALSE, out.width="30%", fig.cap="Relating residential segregation to infection risk, from Acevedo-Garcia (2000)."}
+In this model, the world is broken down into <u>two groups</u>: 
+
+<center><span style="font-size: 24px; font-weight: bold;">majority<span></center>
+
+```{r, echo=FALSE, fig.align="center", out.width="10%", fig.show='hold', fig.cap="*Majority groups will be represented as red with a polka-dot pattern.*"}
+knitr::include_graphics("images/majority.png")
+```
+
+<center> and </center> 
+
+<center><span style="font-size: 24px; font-weight: bold;">minority</span></center>
+```{r, echo=FALSE, fig.align="center", out.width="10%", fig.show='hold', fig.cap="*Minority groups will be represented as blue with a striped pattern.*"}
+knitr::include_graphics("images/minority2.png")
+```
+
+Typically, residential segregation can be thought of in **racial** or **socioeconomic** terms. But at the end of the day, all of the insights about segregation are applicable to thinking about patterns of contact and risk in any setting where you have two interacting populations, and differing rates of **within** and **between-group** contact. 
+
+### Context Matters
+
+It's also important to remember that **these processes occur in many contexts** and not only along the lines we typically think of as characterizing residential segregation in the United States. 
+
+For example, in many countries, recent arrivals to a city from the countryside may live in shantytowns that induce higher rates of within-group contact as well as a higher intensity of exposure due to **local environmental and social factors**.
+
+### Disparities Depend on Two Main Attributes: Isolation and Concentration
+
+```{r, fig.align="center", echo=FALSE, out.width="50%", fig.cap="*Relating residential segregation to infection risk, from Acevedo-Garcia (2000).*"}
 knitr::include_graphics("images/acevedo_garcia_conceptual.png")
 ```
 
 After reviewing the literature and the different approaches to measuring segregation, she concludes that disparities in infection risk related to segregation can be conceptualized primarily as a function of two attributes, specifically:
 
-1. **Isolation:** This refers to the proportion of an average group member's interactions that occur *within that group*. This captures the aspect of residential segregation that makes within-group contact for both minority and majority groups more likely than we would expect by chance alone.
+1. **Isolation:** This refers to the **proportion** of an average group member's interactions that occur **within that group.** This captures the aspect of residential segregation that makes within-group contact for both minority and majority groups more likely than we would expect by chance alone.
 
-For example, this image shows a situation of *low isolation* in which members of the minority group (in green) are evenly distributed throughout neighborhoods of a hypothetical city:
+For example, this image shows a situation of **low isolation** in which members of the minority group (in blue) are evenly distributed throughout neighborhoods of a hypothetical city:
 
-```{r, fig.align="center", echo=FALSE, out.width="30%", fig.cap="An example of low isolation, from Acevedo-Garcia (2000)."}
-knitr::include_graphics("images/acevedo_low_isolation.png")
+```{r, fig.align="center", echo=FALSE, out.width="50%", fig.cap="*An example of low isolation, from Acevedo-Garcia (2000).*"}
+knitr::include_graphics("images/low_isolation.png")
 ```
-Specifically, the green individuals represent 10% of the population and are evenly dispersed throughout, so that each block has 10% of its members from the green group and 90% from the red group, reflecting the population distribution.
+Specifically, the blue individuals represent 10% of the population and are evenly dispersed throughout, so that each block has 10% of its members from the blue group and 90% from the red group, reflecting the population distribution.
 
-By contrast, this image shows a situation in which isolation is very high, where green individuals only contact other green individuals, and the same goes for those in the red group:
+By contrast, this image shows a situation in which **isolation is very high**, where blue individuals only contact other blue individuals, and the same goes for those in the red group:
 
-```{r, fig.align="center", echo=FALSE, out.width="30%", fig.cap="An example of low isolation, from Acevedo-Garcia (2000)."}
-knitr::include_graphics("images/acevedo_high_isolation.png")
-```
-
-2. **Concentration:** This refers to the *density* or *intensity* of contacts individuals have. We can think of this as reflecting crowded living conditions, in which minority-group members have not only a higher *rate* of contact with members of their group, but also that each of those contacts has a greater *intensity* than do their contacts with out-group members. 
-
-```{r, fig.align="center", echo=FALSE, out.width="30%", fig.cap="An example of high isolation and high concentration, from Acevedo-Garcia (2000)."}
-knitr::include_graphics("images/acevedo_concentration.png")
+```{r, fig.align="center", echo=FALSE, out.width="50%", fig.cap="*An example of high isolation, from Acevedo-Garcia (2000).*"}
+knitr::include_graphics("images/high_isolation.png")
 ```
 
+2. **Concentration:** This refers to the **density** or **intensity** of contacts individuals have. We can think of this as reflecting crowded living conditions, in which minority-group members have not only a **higher rate** of contact with members of their group, but also that each of those contacts has a **greater intensity** than do their contacts with out-group members. 
 
-In the next section, we will explore how these factors come together to impact patterns and intensities of *contact* within and between minority and majority groups.
+```{r, fig.align="center", echo=FALSE, out.width="50%", fig.cap="*An example of high isolation and high concentration, from Acevedo-Garcia (2000).*"}
+knitr::include_graphics("images/concentration.png")
+```
 
 
-### Simulating patterns of contact 
+In the next section, we will explore how these factors come together to impact patterns and intensities of contact within and between minority and majority groups.
 
-In the demo below, you can explore the impact of some key parameters on the distribution of contacts an individual has. The plots show you 100 contacts of individuals in the minority (green) and majority (red) groups, respectively. The size of the dots indicates the relative *susceptibility* of individuals in the segregated minority group. We can think of the susceptibility as multiplying the risk of infection.
 
-### Random mixing $\ne$ No isolation
-
-One thing to pay attention to is what happens when isolation < proportion in the minority group. *In a well-mixed population, i.e. where individuals contact each other without regard to group membership, isolation = proportion in the minority group.* When isolation is lower than the proportion in the group, this means that individuals in that group *preferentially* have contact with those in the majority group.
-
-### Isolation vs Interaction
-
-When we talk about the relationship between segregation and infectious disease disparities, we're really talking about the way that segregation impacts rates of transmission *within* and *between* the two groups. In this sense, *isolation* is really only part of the equation: the other one is *interaction*, i.e. how much contact does the minority group have with the majority group and vice-versa. In a scenario with just two groups, this is simple: The *interaction* of minority group members with majority group members is just 1-isolation, i.e. the proportion of contacts not used up by within-group contact.
-
-### How do population share and isolation interact?
-
-Try adjusting the proportion of individuals in the minority vs. majority group, the isolation of the minority group, and the relative susceptibility of the minority group as compared to the majority group. **To update the plots, click the "Draw contacts!" button after changing the parameter values.** 
-
-The image in the figure shows the distribution of 100 randomly selected contacts of an individual in either the minority or majority group, with majority group individuals in red and minority group members in green.
-
+## Simulating Patterns of Contact 
 
 ```{r contact, echo=FALSE}
 fluidPage(
   fluidRow(
     column(4,
            
-           h4("Model Parameters"),
+           h4("Contact Parameters"),
            
            sliderInput(
              "p1a",
-             "Proportion of population in minority group",
+             "Proportion of Total Population in the Minority Group",
              min = 0.01,
              max = 0.49,
              value = 0.1
@@ -140,29 +159,29 @@ fluidPage(
            #uiOutput("isoslider"),
            sliderInput(
              "taua",
-             "Minority Group Isolation",
+             "Degree of Isolation of the Minority Group",
              min = 0.0,
              max = 1,
              value = 0.1
            ),
-           actionButton("simulate", "Draw contacts!")
+           # actionButton("simulate", "Draw contacts!")
            
     ),
     
     column(8,
            tabsetPanel(
-             tabPanel("Minority Group", plotOutput("contactA")),
-             tabPanel("Majority Group", plotOutput("contactB"))
+             tabPanel("Minority Member Perspective", plotlyOutput("contactA")),
+             tabPanel("Majority Member Perspective", plotlyOutput("contactB"))
            )
     )),
   
   fluidRow(
     column(4, offset = 4,
-           h5("Proportion of minority group contacts w/majority"),
+           h5("Proportion of Minority Group Contacts w/Majority", align="center", style="font-weight:bold;"),
            gaugeOutput("gauge2")
     ),
     column(4,
-           h5("Proportion of majority group contacts w/minority"),
+           h5("Proportion of Majority Group Contacts w/Minority", align="center", style="font-weight:bold;"),
            gaugeOutput("gauge"))
     
   )
@@ -170,53 +189,107 @@ fluidPage(
 )
 ```
 
+In the demo above, you can explore the impact of some key parameters on the distribution of contacts an individual has. The plots show you 100 contacts of individuals in the minority (blue) and majority (red) groups, respectively. 
 
-## Simulating transmission
+<!-- The **size of the dots** indicates the **relative susceptibility** of individuals in the segregated minority group.  -->
 
-Now, let's think about how these factors, of isolation, concentration, and susceptibility, may related to the dynamics of transmission. 
+<!-- We can think of the susceptibility as multiplying the risk of infection. -->
 
-The diagram below shows the states *susceptible-infected-recovered* model with two groups, representing the *red* majority group individuals and the *green* minority group individuals:
 
-```{r, fig.align="center", echo=FALSE, out.width="30%", fig.cap="An SIR model with two groups."}
-knitr::include_graphics("images/sir_flow_chart.png")
+<h3> Random Mixing $\ne$ No Isolation </h3>
+
+One thing to pay attention to is what happens when isolation < proportion in the minority group. 
+
+**In a well-mixed population, i.e. where individuals contact each other without regard to group membership, isolation = proportion in the minority group.** 
+
+When isolation is lower than the proportion in the group, this means that individuals in that group *preferentially* have contact with those in the majority group.
+
+<h3> Isolation vs Interaction </h3>
+
+When we talk about the relationship between segregation and infectious disease disparities, we're really talking about the way that segregation impacts rates of transmission **within** and **between** the two groups. In this sense, **isolation** is really only part of the equation: the other one is **interaction**, i.e. how much contact the minority group has with the majority group and vice-versa. 
+
+In a scenario with just two groups, this is simple: The **interaction** of minority group members with majority group members is just $1 - isolation$, i.e. the proportion of contacts not used up by within-group contact.
+
+<h3> How Do Population Share and Isolation Interact? </h3>
+
+Try adjusting the proportion of individuals in the minority vs. majority group, the isolation of the minority group, and the relative susceptibility of the minority group as compared to the majority group.  
+
+The graph in the model shows the distribution of 100 randomly selected contacts of an individual in either the minority or majority group, with majority group individuals in red and minority group members in blue.
+
+
+## Transmission Dynamics
+### The Susceptible-Infected-Recovered (SIR) Model
+Now, let's think about how these factors — of isolation, concentration, and susceptibility — may relate to the dynamics of transmission. 
+
+The diagram below shows the **susceptible-infected-recovered** model with two groups, representing the red majority group individuals and the blue minority group individuals:
+
+```{r, fig.align="center", echo=FALSE, out.width="50%", fig.cap="*An SIR model with two groups: one for majority and one for minority. Interactions take place between majority and minority groups.*"}
+knitr::include_graphics("images/sir_ixns.png")
 ```
 
-For a refresher on SIR Models check out the [Wikipedia page](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_model), and [this tutorial](https://ncase.me/covid-19/).
+*For a refresher on SIR Models check out the [Wikipedia page](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_model) and [this tutorial](https://ncase.me/covid-19/).*
 
-Briefly, in this model, individuals can be in one of the three states. *Susceptible* individuals (marked by S) are those who are able to be infected, *infected* individuals are those can infect susceptible individuals and move them into the *I* class. Finally, in this model, when an individual recovers after some period of time, they enter the *R* class and are assumed to be immune from future infection.
+To put it briefly, in this model, individuals can be in one of the three states. 
+
+1. **Susceptible** individuals (in the ***S*** class) are those who are able to be infected;
+2. **Infected** individuals are those can infect susceptible individuals and move them into the ***I*** class; and finally,
+3. **Recovered** individuals (in the ***R*** class) are those who have recovered after some period of time and are assumed to be **immune** from future infection.
 
 ### How does segregation drive inequality in outcomes?
 
-We'll extend the basic SIR model by splitting everyone up into two groups, with one set of disease states for the red majority group members and another for the green minority group members. We've added two more parameters to the contact ones from the last exercise. Now we have the *daily infectiousness*, i.e. the risk that a majority group individual with infect another majority group individual on each day. We have also added the average duration of infection in days. The second parameter is the average duration of infectiousness. **Remember, more days on which to be infectious = more infections if you keep the daily infectiousness constant.**
+We'll extend the basic SIR model by splitting everyone up into **two groups** with one set of disease states for the red majority group members and another for the blue minority group members. 
 
-The contact parameters are the same as before, but now they are governing the rate of contact both *within* and *between* the majority and minority groups. 
+We'll also add two more parameters to the contact parameters from the last exercise: 
 
-### What happens when *susceptibility* meets *isolation*?
+1. **Daily infectiousness**, i.e. the risk that a majority group individual with infect another majority group individual on each day. 
 
-The rate of transmission is a function of who you contact as well as how likely those contacts are to infect you. So, if susceptibility = 2, for each infectious individual they are exposed to, a susceptible individual in the minority group would have double the risk of infection as an equivalent individual in the majority group. 
+2. **Average duration of infection** (in days). 
 
-For example, this might occur in a situation where individuals in the minority group live in more cramped conditions with poor air circulation, making the likelihood of infection upon exposure greater for those in the minority than the majority. For vaccine-preventible diseases, it could be the case that individuals in the minority group are less likely to be vaccinated than those in the majority, making them more susceptible to infection.
+Remember, **more days on which to be infectious = more infections** if you keep the daily infectiousness **constant**.
 
-### Try it out
+The contact parameters are the same as before (proportion of total population in the minority group and degree of isolation of the minority group), but now they are governing the **rate of contact** both **within** and **between** the majority and minority groups. 
 
-The value $R0$ at the bottom is the basic reproduction number, i.e. the average number of individuals infected by single case in a totally susceptible population. This value is important because if $R0 > 1$, we should expect to see outbreaks, but if it is less than 1, we should expect transmission to fizzle out. 
+### What happens when susceptibility meets isolation?
 
-Try different values of the slider and press "Run Model!" to update the output. In the figure, the red line represents the total number of infections in the majority group, the green line represents the total number of infections in the minority group, and the black line is the total overall out of a population of 100,000 individuals. The red and green dashed lines show the maximum number of possible infections for the majority and minority groups, respectively. 
+The rate of transmission is a function of **who you contact** as well as **how likely those contacts are to infect you**. 
+
+So, if $susceptibility = 2$, for each infectious individual they are exposed to, a susceptible individual in the minority group would have **double the risk of infection** as an equivalent individual in the majority group. 
+
+For example, this might occur in a situation where individuals in the minority group live in more cramped conditions with poor air circulation, making the likelihood of infection upon exposure greater for those in the minority than the majority. 
+
+For vaccine-preventable diseases, it could be the case that individuals in the minority group are less likely to be vaccinated than those in the majority, making them more susceptible to infection.
+
+## Simulating Transmission
+### Try it Out
+
+Try changing different values of the slider to update the output. 
+
+In the model, the red line represents the total number of infections in the majority group, the blue line represents the total number of infections in the minority group, and the black line is the total number of infections overall out of a population of 100,000 individuals. 
+
+The red and blue dashed lines show the maximum number of possible infections for the majority and minority groups, respectively. 
+
+The value "Overall $R_{0}$" is the **basic reproduction number**, i.e. the average number of individuals infected by single case in a totally susceptible population. 
+
+**This value is important:**
+
+- If $R_{0} > 1$, we should expect to see outbreaks. 
+- If $R_{0} < 1$, we should expect transmission to fizzle out. 
+
 
 ```{r makegrid, echo=FALSE}
 sidebarLayout(
   sidebarPanel(
-    h4("Model Parameters"),
+    h4("Contact Parameters"),
     sliderInput(
       "beta",
-      "Infections per case/day",
+      "Infections per Case/Day",
       min = 0.01,
       max = 1.0,
       value = 0.1
     ),
     sliderInput(
       "gamma",
-      "Duration of infectiousness (days)",
+      "Duration of Infectiousness (days)",
       min = 1,
       max = 5,
       value = 3,
@@ -224,78 +297,81 @@ sidebarLayout(
     ),
     sliderInput(
       "p1",
-      "Proportion in group 1",
+      "Proportion of Total Population in the Minority Group",
       min = 0.01,
       max = 0.49,
       value = 0.1
     ),
-    #uiOutput("isoslider"),
     sliderInput(
       "tau",
-      "Minority Group Isolation",
+      "Degree of Isolation of the Minority Group",
       min = 0.0,
       max = 1,
       value = 0.5
     ),
     sliderInput(
       "rho",
-      "Minority Group Concentration",
+      "Degree of Concentration of Minority Group individuals",
       min = 1.0,
       max = 5.0,
       value = 1.0,
       step = 0.1
     ),
-    h5("Overall R0"),
+    h5("Overall R0", align="center", style="font-weight:bold;"),
     gaugeOutput("overallR"),
     
-    actionButton("runmodel", "Run Model!")
-    
-    
+    # actionButton("runmodel", "Run Model!")
     
   ),
   
   mainPanel(
-    plotOutput("incidence"),
+    plotlyOutput("incidence"),
     fluidRow(
-      column(4,
-             h4("Number of infections from introducing 1 case into:")),
-      column(4,
-             h5("Minority Group"),
-             gaugeOutput("gaugeA")),
-      column(4,
-             h5("Majority Group"),
-             gaugeOutput("gaugeB"))
+      column(12,
+             h4("Number of infections from introducing 1 case into:", style="font-weight:bold;")),
+    ),
+    fluidRow(
+      column(6,
+             h5("Minority Group", align="center", style="font-weight:bold;"),
+             gaugeOutput("gaugeA")
+             ),
+      column(6,
+             h5("Majority Group", align="center", style="font-weight:bold;"),
+             gaugeOutput("gaugeB")
+             )
     ),
     fluidRow(
       column(4,
-             h5("Minority Group Incidence"),
-             gaugeOutput("minIncGauge")),
+             h5("Minority Group Incidence", align="center", style="font-weight:bold;"),
+             gaugeOutput("minIncGauge")
+             ),
       column(4,
-             h5("Majority Group Incidence"),
+             h5("Majority Group Incidence", align="center", style="font-weight:bold;"),
              gaugeOutput("majIncGauge")
-      ),
+             ),
       column(4,
-             h5("Relative Risk"),
+             h5("Relative Risk", align="center", style="font-weight:bold;"),
              gaugeOutput("rrGauge")
-      )
+             )
     )
   )
 )
 ```
 
-**Discussion Questions**
+<h3> Discussion Questions </h3>
 
-The text below the plot shows the final proportion of the population of each group that was infected at the end of the simulation, as well as the *relative* risk of infection for individuals in the minority vs. majority group. Use this information as well as your observations from running the transmission model with different input parameter values to think about the following questions:
+The text below the plot shows the final proportion of the population of each group that was infected at the end of the simulation, as well as the **relative** risk of infection for individuals in the minority vs. majority group. Use this information as well as your observations from running the transmission model with different input parameter values to think about the following questions:
 
-1. What seems to be the most important factor in driving *inequality* in the number of infections at the end of the outbreak?
+1. What seems to be the most important factor in driving **inequality** in the number of infections at the end of the outbreak?
 
-2. Is there a relationship between *infectiousness* and inequality? In other words, is inequality in infection risk greater or lower at high levels of infectiousness?
+2. Is there a relationship between **infectiousness** and **inequality**? In other words, is inequality in infection risk greater or lower at high levels of infectiousness?
 
-3. What impact does the susceptibility of the minority group have on population-level patterns of disease? Are there situations in which the minority group may have very high rates of infection, but the population as a whole does not? When does this happen?
+3. What impact does the **susceptibility** of the minority group have on population-level patterns of disease? Are there situations in which the minority group may have very high rates of infection, but the population as a whole does not? When does this happen?
 
 ```{r, context="server"}
 
-modelPars <- eventReactive(input$runmodel, {
+# eventReactive is tied to changing inputs
+modelPars <- eventReactive(list(input$beta, input$gamma, input$p1, input$tau, input$rho), {
   params <- c(beta=input$beta,
               gamma=1/input$gamma,
               rho=input$rho, 
@@ -325,37 +401,42 @@ modelRun <- reactive({
   
 })
 
-
-
 modelFigures <- reactive({
   params <- modelPars()
+  
   require(ggplot2)
+  require(plotly)
+  
   p1 <- params[["p1"]]
   p2 <- 1-p1
-  g <- ggplot(modelRun(), aes(x=time)) + geom_line(aes(y = 1e5*R1), colour = "green") + geom_line(aes(y=1e5*R2), colour = "red") + xlab("Day") + 
+  
+  g <- ggplot(modelRun(), aes(x=time)) + geom_line(aes(y = 1e5*R1), colour = "blue") + geom_line(aes(y=1e5*R2), colour = "red") + xlab("Day") + 
     geom_line(aes(y=1e5*(R1+R2))) + 
-    ylab("Cumulative number infected") + 
+    ylab("Cumulative Number Infected") + 
     ylim(0,1e5) +
-    geom_hline(yintercept = 1e5*p1, linetype = "dashed", colour = "green") +
+    geom_hline(yintercept = 1e5*p1, linetype = "dashed", colour = "blue") +
     geom_hline(yintercept = 1e5*p2, linetype = "dashed", colour = "red") + 
-    theme_bw()
-  return(g)
+    theme_bw() +
+    theme(legend.position = "left") 
+    # + scale_color_manual(labels=c("Total # Infections in Maj. Group", "Total # Infections in Min. Group", "Overall Total Infections /1,000"), values=c("blue","red","black"))
+  
+  p <- ggplotly(g)
+  
+  return(p)
 })
 
-output$incidence <- renderPlot({
-  
+output$incidence <- renderPlotly({
   return(modelFigures())
-  
 })
 
-isoVal <- reactive({
-  
-})
 
-contactA <- eventReactive(input$simulate,{
+# to make contactA update on input updates, it listens to list(input$p1a, input$taua)
+contactA <- eventReactive(list(input$p1a, input$taua),{
   require(packcircles)
   require(ggplot2)
-  num_contacts <- 150
+  require(plotly)
+  
+  num_contacts <- 100
   intensity <-1# input$rhoa
   p1 <- input$p1a
   p2 <- 1-p1
@@ -380,7 +461,7 @@ contactA <- eventReactive(input$simulate,{
   print(df$ingroup_ratio)
   df$intensity <- rbeta(nrow(df), 20,20)*df$ingroup_ratio
   
-  limits <- c(-10,10)
+  limits <- c(-5,5)
   res <- circleRepelLayout(df$intensity, xlim = limits, ylim = limits)
   
   dat.gg <- circleLayoutVertices(res$layout, sizetype = "radius")
@@ -404,17 +485,21 @@ contactA <- eventReactive(input$simulate,{
     geom_polygon(aes(fill=group, colour=group),alpha=0.3) +
     coord_equal(xlim=limits, ylim=limits) + 
     scale_fill_manual(breaks = c("1", "2"), 
-                      values=c("red", "green")) + 
-    theme(legend.position = "none")
+                      values=c("red", "blue"),
+                      labels=c("majority", "minority")) + 
+    theme(legend.position = "left")
   
-  return(g)
+  p <- ggplotly(g)
+  
+  return(p)
   
 }, ignoreNULL=FALSE)
 
-output$contactA <- renderPlot({
+output$contactA <- renderPlotly({
   return(contactA())
 })
 
+# interactionRates calculates the interaction rates given p1a and taua
 interactionRates <- reactive({
   p1 <- input$p1a
   p2 <- 1-p1
@@ -428,8 +513,7 @@ interactionRates <- reactive({
                        dissimilarity = abs((a_in_contact_p)-(1-a_in_contact_p)))
   
   return(group_values)
-}
-)
+})
 
 output$majorityIsolation <- renderText({
   ir <- interactionRates()
@@ -442,10 +526,13 @@ output$dissimilarity <- renderText({
 })
 
 
-contactB <- eventReactive(input$simulate, {
+# to make contactB update on input updates, it listens to list(input$p1a, input$taua)
+contactB <- eventReactive(list(input$p1a, input$taua), {
   require(packcircles)
   require(ggplot2)
-  num_contacts <- 150
+  require(plotly)
+  
+  num_contacts <- 100
   intensity <- 1 #input$rhoa
   p1 <- input$p1a
   p2 <- 1-p1
@@ -462,7 +549,7 @@ contactB <- eventReactive(input$simulate, {
   df_b$intensity <- rbeta(nrow(df_b), 20,20)
   
   
-  limits <- c(-10,10)
+  limits <- c(-5,5)
   res <- circleRepelLayout(df_b$intensity, xlim = limits, ylim = limits)
   
   dat.gg <- circleLayoutVertices(res$layout, sizetype = "radius")
@@ -486,25 +573,20 @@ contactB <- eventReactive(input$simulate, {
     geom_polygon(aes(fill=group, colour=group),alpha=0.3) +
     coord_equal(xlim=limits, ylim=limits) + 
     scale_fill_manual(breaks = c("1", "2"), 
-                      values=c("red", "green")) + 
-    theme(legend.position = "none")
+                      values=c("red", "blue")) + 
+    theme(legend.position = "left")
   
-  return(g)
+  p <- ggplotly(g)
+  
+  return(p)
   
 }, ignoreNULL=FALSE)
 
-output$contactB <- renderPlot({
+output$contactB <- renderPlotly({
   return(contactB())
 })
 
-# betaVal  <- reactive({
-#    p1 <- input$p1
-#     p2 <- 1-input$p1 
-#     beta <- 0.1*input$R0/(p1*input$rho + p2)
-#     return(beta)
-# })
-
-
+# the gauge for overall R updates on changing p1 and tau
 output$overallR <- renderGauge({
   p1 <- input$p1
   p2 <- 1-p1
@@ -517,10 +599,18 @@ output$overallR <- renderGauge({
   
   gauge(round(R0,2),
         min = 0,
-        max = 20)
+        max = 20,
+        sectors = gaugeSectors(
+          success = c(0,5),
+          warning = c(5,15),
+          danger = c(15,20),
+          colors=c("#F7D992", "#FFC20A", "#D35FB7") # colors: https://davidmathlogic.com/colorblind/#%23E1BE6A-%2340B0A6
+          
+        ))
   
 })
 
+# this groups risk and is called for gauges A and B
 groupR <- reactive({
   p1 <- input$p1
   p2 <- 1-p1
@@ -545,18 +635,26 @@ groupR <- reactive({
   
 })
 
+# gaugeA and gaugeB update on changing p1 and tau
+
 output$gaugeA <- renderGauge({
   ir <- groupR()
   gauge(round(ir$minority,2),
         min = 0,
-        max = 20)
+        max = 20,
+        sectors = gaugeSectors(
+          colors=c("grey", "darkgrey")
+        ))
 })
 
 output$gaugeB <- renderGauge({
   ir <- groupR()
   gauge(round(ir$majority,2),
         min = 0,
-        max = 20)
+        max = 20,
+        sectors = gaugeSectors(
+          colors=c("grey", "darkgrey")
+        ))
 })
 
 
@@ -592,8 +690,9 @@ output$minIncGauge <- renderGauge({
         max = 100,
         sectors = gaugeSectors(
           success = c(0, 10),
-          warning = c(10, 50 ),
-          danger  = c(50,100)))
+          warning = c(10, 50),
+          danger  = c(50,100),
+          colors = c("lightgrey", "darkgrey", "dimgrey")          ))
   
 })
 
@@ -604,8 +703,10 @@ output$majIncGauge <- renderGauge({
         max = 100,
         sectors = gaugeSectors(
           success = c(0, 10),
-          warning = c(10, 50 ),
-          danger  = c(50,100)))
+          warning = c(10, 50),
+          danger  = c(50,100),
+          colors = c("lightgrey", "darkgrey", "dimgrey")
+          ))
   
 })
 
@@ -616,8 +717,10 @@ output$rrGauge <- renderGauge({
         max = 20,
         sectors = gaugeSectors(
           success = c(0, 1.5),
-          warning = c(1.5, 5 ),
-          danger  = c(5,20)))
+          warning = c(1.5, 5),
+          danger  = c(5,20),
+          colors = c("grey", "darkgrey")          
+          ))
   
 })
 
@@ -627,7 +730,11 @@ output$gauge <- renderGauge({
   gauge(round(ir$majority,2),
         min = 0,
         max = 1,
-        sectors = gaugeSectors(success = c(0.0, 0.25), warning = c(0.25, 0.75), danger = c(0.75, 1)) )
+        sectors = gaugeSectors(
+          success = c(0.0, 0.25), 
+          warning = c(0.25, 0.75), 
+          danger = c(0.75, 1),
+          colors = c("lightgrey", "darkgrey", "dimgrey")          ))
 })
 
 output$gauge2 <- renderGauge({
@@ -635,6 +742,10 @@ output$gauge2 <- renderGauge({
   gauge(round(ir$minority,2),
         min = 0,
         max = 1,
-        sectors = gaugeSectors(success = c(0.0, 0.25), warning = c(0.25, 0.75), danger = c(0.75, 1)) )
+        sectors = gaugeSectors(
+          success = c(0.0, 0.25), 
+          warning = c(0.25, 0.75), 
+          danger = c(0.75, 1),
+          colors = c("lightgrey", "darkgrey", "dimgrey")          ))
 })
 ```
