@@ -139,20 +139,20 @@ half_grid <- function(d, ratio, N, p) {
 }
 
 #https://stackoverflow.com/questions/69239816/how-to-break-a-continuous-variable-into-discrete-intervals-using-only-ggplot2
+# Binned Sequential: https://colorspace.r-forge.r-project.org/reference/scale_colour_binned_sequential.html
 
-blockbreaks <- seq(0, 1, by = 0.05)
+# blockbreaks <- seq(0, 1, by = 0.05)
 
 
 grid_plot <- function(df) {
   
-  g <- ggplot(df, aes(x = x, y = y, fill = p)) + #cut (p, breaks = blockbreaks))
+  g <- ggplot(df, aes(x = x, y = y, fill = p)) +
     geom_tile() +
-    #scale_fill_discrete_sequential(palette = "Blues 3",  name="Blocks", limits = c(0,1), oob=scales::squish)+   
-    scale_fill_gradient2(name=stringr::str_wrap("Proportion unvaccinated", 20), limits=c(0,1), oob=scales::squish) + 
+    scale_fill_binned_sequential(palette = "Blues 3", name=stringr::str_wrap("Proportion Unvaccinated", 20), limits=c(0,1), show.limits = TRUE, oob = scales::squish, aesthetics="fill") + ##NOTE: SHOW.LIMITS IS NOT WORKING
+    # scale_fill_gradient2(name=stringr::str_wrap("Proportion Unvaccinated", 20), limits=c(0,1), oob=scales::squish) +
     theme_bw() +
     coord_equal() +
-    #guides(fill = guide_legend(title = "Proportion Unvaccinated")) +
-    labs(color="Blues 3", x="x", y="y")+
+
     theme(
       #legend.position = c(0,1),
       #legend.justification = c(0,1),
