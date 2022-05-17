@@ -140,22 +140,22 @@ half_grid <- function(d, ratio, N, p) {
 
 #https://stackoverflow.com/questions/69239816/how-to-break-a-continuous-variable-into-discrete-intervals-using-only-ggplot2
 
-blockbreaks <- seq(0, 1, by = 0.25)
+blockbreaks <- seq(0, 1, by = 0.05)
 
 
 grid_plot <- function(df) {
   
-  g <- ggplot(df, aes(x = x, y = y, fill = cut (p, breaks = blockbreaks, limits=c(0,1),))) + 
+  g <- ggplot(df, aes(x = x, y = y, fill = p)) + #cut (p, breaks = blockbreaks))
     geom_tile() +
-    geom_raster() +
-    scale_fill_discrete_sequential(palette = "Blues 3",  name="Blocks")+   
-    theme_bw() + 
+    #scale_fill_discrete_sequential(palette = "Blues 3",  name="Blocks", limits = c(0,1), oob=scales::squish)+   
+    scale_fill_gradient2(name=stringr::str_wrap("Proportion unvaccinated", 20), limits=c(0,1), oob=scales::squish) + 
+    theme_bw() +
     coord_equal() +
-    guides(fill = guide_legend(title = "Proportion Unvaccinated")) +
+    #guides(fill = guide_legend(title = "Proportion Unvaccinated")) +
     labs(color="Blues 3", x="x", y="y")+
     theme(
-      legend.position = c(0,1),
-      legend.justification = c(0,1),
+      #legend.position = c(0,1),
+      #legend.justification = c(0,1),
       axis.title.x=element_blank(), #remove "x" label 
       axis.title.y=element_blank(),  #remove "y" label      
     )
@@ -232,6 +232,7 @@ We will use the following notation throughout:
 - $N$ = Total overall population size (i.e. $A + B$).
 
 ## Metric: Isolation & Interaction
+
 ### Isolation
 
 If we have two groups $a$ and $b$, in which $b$ is a minority group, i.e. $N_{b} < N_{a}$, isolation measures the **proportion of the contacts among minority group members** that are within-group. 
