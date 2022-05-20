@@ -148,11 +148,19 @@ grid_plot <- function(df) {
   
   g <- ggplot(df, aes(x = x, y = y, fill = p)) +
     geom_tile() +
-    scale_fill_binned_sequential(palette = "Blues 3", name=stringr::str_wrap("Proportion Unvaccinated", 20), limits=c(0,1), show.limits = TRUE, oob = scales::squish, aesthetics="fill") + ##NOTE: SHOW.LIMITS IS NOT WORKING
-    # scale_fill_gradient2(name=stringr::str_wrap("Proportion Unvaccinated", 20), limits=c(0,1), oob=scales::squish) +
+    scale_fill_binned_sequential(
+      palette = "Blues 3",
+      begin = 0,
+      end = 1,
+      guide = "coloursteps",
+      aesthetics = "fill",
+      name = stringr::str_wrap("Proportion Unvaccinated", 20),
+      limits = c(0, 1),
+      show.limits = TRUE,
+      oob = scales::squish,
+    ) + ##NOTE: SHOW.LIMITS IS NOT WORKING
     theme_bw() +
     coord_equal() +
-
     theme(
       #legend.position = c(0,1),
       #legend.justification = c(0,1),

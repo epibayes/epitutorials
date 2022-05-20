@@ -1,13 +1,13 @@
 sim_full_data <- reactive({
-  
   N <- input$N
   ids <- 1:input$N
-  num_control <- ifelse((N %% 2) == 1, ((N+1)/2)-1, N/2)
-  num_exp <- ifelse((N %% 2) == 1, ((N+1)/2), N/2)
+  num_control <- ifelse((N %% 2) == 1, ((N + 1) / 2) - 1, N / 2)
+  num_exp <- ifelse((N %% 2) == 1, ((N + 1) / 2), N / 2)
   
-  treatment <- c(rep(0,num_control), rep(1,num_exp))
+  treatment <- c(rep(0, num_control), rep(1, num_exp))
   
-  p_high <- plogis(qlogis(input$p_high) + log(1/input$or_hr)*treatment)
+  p_high <-
+    plogis(qlogis(input$p_high) + log(1 / input$or_hr) * treatment)
   
   high_risk <- rbinom(input$N, 1, p_high)
   
@@ -21,7 +21,10 @@ sim_full_data <- reactive({
   
   df <- rbind(df1, df2)
   
-  mu <- input$alpha + input$beta_time*df$time + input$beta_t_delta*(df$time*df$treatment) + input$beta_t*df$treatment*df$time + input$alpha_diff*df$high_risk
+  mu <-
+    input$alpha + input$beta_time * df$time + input$beta_t_delta * (df$time *
+                                                                      df$treatment) + input$beta_t * df$treatment * df$time + input$alpha_diff *
+    df$high_risk
   
   df$y <- rnorm(nrow(df), mu, sd = input$sd)
   
@@ -43,34 +46,49 @@ output$exp_model_summary <- renderPrint({
   summary(exp_model_fit())
 })
 
-output$exp_model_plot <- renderPlot({
-  
-  g <- ggplot(sim_exp_data()) + 
-    geom_jitter(aes(x = treatment, y = y, colour = as.factor(high_risk), shape = as.factor(treatment))) + 
-    geom_smooth(aes(x = treatment, y = y), colour = "gray", method = "lm", se = FALSE) + 
+output$exp_model_plot <- renderPlotly({
+  g <- ggplot(sim_exp_data()) +
+    geom_jitter(aes(
+      x = treatment,
+      y = y,
+      colour = as.factor(high_risk),
+      shape = as.factor(treatment)
+    )) +
+    geom_smooth(
+      aes(x = treatment, y = y),
+      colour = "blue",
+      method = "lm",
+      se = FALSE
+    ) +
     theme(legend.position = "bottom")
   
-  return(g)
+  p <- ggplotly(g)
+  return(p)
   
   
 })
 
-output$selectionError <- renderPlot({
+output$selectionError <- renderPlotly({
+  conf_range <- confint(exp_model_fit(), "Treatment") - input$beta_t
   
-  conf_range <- confint(exp_model_fit(), "treatment") - input$beta_t
+  df <-
+    data.frame(
+      x = 0,
+      ymin = conf_range[1],
+      ymax = conf_range[2],
+      tf = coef(exp_model_fit())[["treatment"]] - input$beta_t
+    )
   
-  df <- data.frame(x = 0, ymin = conf_range[1], ymax = conf_range[2], tf = coef(exp_model_fit())[["treatment"]]-input$beta_t)
-  
-  g <- ggplot(df) + 
+  g <- ggplot(df) +
     geom_errorbar(aes(x = x, ymin = ymin, ymax = ymax)) +
-    geom_point(aes(x=x, y = tf)) +
-    xlim(-0.5,.5) + 
-    xlab("") + 
+    geom_point(aes(x = x, y = tf)) +
+    xlim(-0.5, .5) +
+    xlab("") +
     ylim(-11, 2) +
-    ylab ("Error in Estimated Treatment Effect") + 
+    ylab ("Error in Estimated Treatment Effect") +
     geom_hline(yintercept = 0, linetype = "dashed")
-  
-  return(g)
+  p <- ggplotly(g)
+  return(p)
   
 })
 
@@ -105,7 +123,8 @@ model_fit <- reactive({
   if (input$did == FALSE) {
     fit <- lm(y ~ time + treatment, data = sim_full_data())
   } else {
-    fit <- lm(y ~ time + treatment + time * treatment, data = sim_full_data())
+    fit <-
+      lm(y ~ time + treatment + time * treatment, data = sim_full_data())
   }
   return(fit)
 })
@@ -144,6 +163,7 @@ simDataFigure <- reactive({
       #group = as.factor(treatment),
       linetype = as.factor(treatment)
     ))
+  
   if (input$did == TRUE) {
     did_d <-
       data.frame(
@@ -153,7 +173,7 @@ simDataFigure <- reactive({
         yend =  pred_d$y[4] - pred_d$offset[4]
       )
     g <-
-      g +  geom_line(data = pred_d[3:4, ],
+      g +  geom_line(data = pred_d[3:4,],
                      aes(x = time, y = y - offset),
                      linetype = "dashed") +
       geom_segment(
@@ -171,9 +191,9 @@ simDataFigure <- reactive({
   g <- g + xlim(-1, 2) +
     theme(legend.position = "bottom")
   
-  return(g)
+  p <- ggplotly(g)
+  return(p)
   
 })
 
-output$simDataPlot <- renderPlot(simDataFigure())
-
+output$simDataPlot <- renderPlotly(simDataFigure())

@@ -5,6 +5,7 @@ output:
     progressive: true
     allow_skip: true
 runtime: shiny_prerendered
+description: "Use Spatial Data to Estimate the Effects of Treatment"
 ---
 
 ```{r setup, include=FALSE}
@@ -16,45 +17,120 @@ require(FNN)
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
+## Using Experimental Data
+### A Hypothetical Trial: Pre-Treatment Outcomes
 
+Imagine we are running and randomized controlled trial in which individuals are sampled at random to be placed in the **experimental** and **control** groups. In the population, there are high and low risk individuals, but they are sampled into the two groups uniformly at random. 
 
-## Experimental data
-
-### Generate some data
-
-Imagine we are running and randomized controlled trial in which individuals are sampled at random to be placed in the *experimental* and *control* groups. In the population, there are high and low risk individuals, but they are sampled into the two groups uniformly at random. 
-
-The sliders below let you set the average value of the *pre-treatment* outcome, the pre-treatment difference between the control and experimental groups, and the proportion of the population in the high-risk group.
+The sliders below let you set the average value of the **pre-treatment** outcome, the pre-treatment difference between the control and experimental groups, and the proportion of the population in the high-risk group.
 
 ```{r, echo = FALSE}
-
- fluidRow(
-column(6,
-
-  plotOutput("exp_model_plot")
-),
-column(6, 
-  verbatimTextOutput("exp_model_summary")
-)
-)
-
-
 fluidRow(
-  
-    column(6,
-  sliderInput("alpha", "Pre-treatment average:", min = 0, max = 20, value = 10),
-  sliderInput("beta_t", "Treatment Effect", min = -10, max = 0, value = -5),
-  sliderInput("sd", "Error Standard Deviation:", min = 0.1, max = 2, value = .5)
-  ),
-  
-  column(6,
-  sliderInput("p_high", "Proportion high-risk:", min = 0.1, max = .5, value = .25),
-  sliderInput("alpha_diff", "Pre-treatment difference between high and low-risk groups", min = 5, max = 20, value = 8),
-  sliderInput("N", "Number of observations", step = 2, min = 100, max = 1000, value = 500)
-  )
-  
-
+  column(12, plotlyOutput("exp_model_plot"))
 )
+fluidRow(
+  column(12, verbatimTextOutput("exp_model_summary"))
+)
+fluidRow(
+  column(6,
+         sliderInput(
+      "alpha",
+      "Pre-Treatment Average:",
+      min = 0,
+      max = 20,
+      value = 10
+    ),
+    sliderInput(
+      "beta_t",
+      "Treatment Effect",
+      min = -10,
+      max = 0,
+      value = -5
+    ),
+    sliderInput(
+      "sd",
+      "Error Standard Deviation:",
+      min = 0.1,
+      max = 2,
+      value = .5
+    )),
+  column(6,
+         sliderInput(
+      "p_high",
+      "Proportion High-Risk:",
+      min = 0.1,
+      max = .5,
+      value = .25
+    ),
+    sliderInput(
+      "alpha_diff",
+      "Pre-Treatment Difference Between High and Low-Risk Groups",
+      min = 5,
+      max = 20,
+      value = 8
+    ),
+    sliderInput(
+      "N",
+      "Number of Observations",
+      step = 2,
+      min = 100,
+      max = 1000,
+      value = 500
+    ))
+)
+
+# sidebarLayout(
+#   sidebarPanel(
+#     sliderInput(
+#       "alpha",
+#       "Pre-treatment average:",
+#       min = 0,
+#       max = 20,
+#       value = 10
+#     ),
+#     sliderInput(
+#       "beta_t",
+#       "Treatment Effect",
+#       min = -10,
+#       max = 0,
+#       value = -5
+#     ),
+#     sliderInput(
+#       "sd",
+#       "Error Standard Deviation:",
+#       min = 0.1,
+#       max = 2,
+#       value = .5
+#     ),
+#     sliderInput(
+#       "p_high",
+#       "Proportion high-risk:",
+#       min = 0.1,
+#       max = .5,
+#       value = .25
+#     ),
+#     sliderInput(
+#       "alpha_diff",
+#       "Pre-treatment difference between high and low-risk groups",
+#       min = 5,
+#       max = 20,
+#       value = 8
+#     ),
+#     sliderInput(
+#       "N",
+#       "Number of observations",
+#       step = 2,
+#       min = 100,
+#       max = 1000,
+#       value = 500
+#     ),
+#   ),
+#   mainPanel(plotOutput("exp_model_plot"))
+# )
+# 
+# fluidRow(column(12,
+#                 verbatimTextOutput("exp_model_summary"))
+# )
 
 
 ```
