@@ -147,10 +147,10 @@ Up to this point, we've focused on the situation in which the high and low risk 
 sidebarLayout(
   sidebarPanel(
 sliderInput("or_hr", "Odds ratio that low vs. high risk individuals live in treatment neighborhood:", min = 1.0, max = 10.0, value = 1.0, animate = FALSE),
-plotOutput("selectionError")
 
 ),
 mainPanel(
+  plotlyOutput("selectionError")
 )
 )
 
