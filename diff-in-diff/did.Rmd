@@ -139,7 +139,7 @@ In this scenario, high and low-risk individuals are allocated to thr different g
 
 However, for most problems involving some kind of *spatial exposure*, e.g. to a neighborhood environment, it is either unethical, impractical, or impossible to randomize people to different neighborhoods. So, what happens when high- or low-risk individuals are overrepresented in one group vs. another?
 
-### What happens when the groups aren't *balanced*?
+### What happens when the groups aren't **balanced**?
 
 Up to this point, we've focused on the situation in which the high and low risk individuals are evenly divided among the groups. But what if we want to look at the impact of living in neighborhood A vs. neighborhood B on some health outcome, e.g. systolic blood pressure? Move the slider around below to increase the odds that low-risk individuals (i.e. those with lower starting blood pressure) have chosen to move to the healthier neighborhood:
 
@@ -158,11 +158,11 @@ mainPanel(
 
 The range in the figure shows the estimated treatment effect and the point shows its true value. What happens to our estimates of this effect as low-risk individuals are increasingly likely to live in the treatment neighborhood?
 
-## Observational data
+## Observational Data in Analyses: 
 
-The situation in the last step, where it is difficult to disentangle variability in outcomes caused by *selection* into the treatment vs. control groups is an inherent problem with spatial data. Since our analyses typically rely on *observational* data, the problem of isolating actual treatment effects is both important...and challenging.
+The situation in the last step, where it is difficult to disentangle variability in outcomes caused by **selection** into the treatment vs. control groups is an inherent problem with spatial data. Since our analyses typically rely on **observational** data, the problem of isolating actual treatment effects is both important...and challenging.
 
-This is often done via some kind of pre-post comparison: Take blood pressure measurements from individuals in the treatment and control groups before the institution of some policy or intervention, then take their blood pressure after the fact. So, first go ahead and generate some data, and then we'll discuss how to isolate the treatment effct from them.
+This is often done via some kind of pre-post comparison: Take blood pressure measurements from individuals in the treatment and control groups before the institution of some policy or intervention, then take their blood pressure after the fact. So, first go ahead and generate some data, and then we'll discuss how to isolate the treatment effect from them.
 
 ### Generate some data
 
@@ -170,27 +170,27 @@ The figure below shows the observational version of our example from before. On 
 
 Now, in addition to having a treatment effect at time 1, we have to account for possible sources of change in the outcome *unrelated to the treatment* between time 0 (treatment) and time 1 (post-treatment). Move the slider below to modify the change in background risk impacting both the experimental and control groups to see what happens to the pre-and post-treatment data in the figure below.
 
-
-```{r, echo=FALSE}
-fluidRow(
-  column(6,
-  sliderInput("beta_time", "Time Effect:", min = -5, max = 5, value = 3)
-  )
-)
-```
-
 The dashed line in the figure shows the estimated pre- and post-treatment values of the outcome for both groups. If you look at the regression results, you can see something here is not quite right:
 
 ```{r, echo=FALSE}
+fluidRow(
+  column(12, sliderInput(
+    "beta_time",
+    "Time Effect:",
+    min = -5,
+    max = 5,
+    value = 3
+  )),
+fluidRow(column(
+  12,
+  plotlyOutput("simDataPlot")
+), ),
 
-fluidRow(column(6,
-
-  plotOutput("simDataPlot")
-),
-column(6, 
+fluidRow(column(
+  12,
   verbatimTextOutput("model_summary")
-)
-)
+)))
+
 ```
 
 This is because the estimated treatment effect in this model is based on a comparison between the *treated* and *untreated* at time 1, but it can't tell the difference between the change over time and the treatment.
