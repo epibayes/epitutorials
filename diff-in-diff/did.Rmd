@@ -3,7 +3,7 @@ title: "Using Spatial Data to Estimate the Effects of Treatment"
 output: 
   learnr::tutorial:
     progressive: true
-    allow_skip: true
+    # allow_skip: true
 runtime: shiny_prerendered
 description: "Use Spatial Data to Estimate the Effects of Treatment"
 ---
@@ -22,14 +22,11 @@ knitr::opts_chunk$set(echo = FALSE)
 
 Imagine we are running and randomized controlled trial in which individuals are sampled at random to be placed in the **experimental** and **control** groups. In the population, there are high and low risk individuals, but they are sampled into the two groups uniformly at random. 
 
-The sliders below let you set the average value of the **pre-treatment** outcome, the pre-treatment difference between the control and experimental groups, and the proportion of the population in the high-risk group.
+The sliders below let you set the average value of the pre-treatment outcome, the pre-treatment difference between the control and experimental groups, and the proportion of the population in the high-risk group.
 
 ```{r, echo = FALSE}
 fluidRow(
   column(12, plotlyOutput("exp_model_plot"))
-)
-fluidRow(
-  column(12, verbatimTextOutput("exp_model_summary"))
 )
 fluidRow(
   column(6,
@@ -77,6 +74,9 @@ fluidRow(
       max = 1000,
       value = 500
     ))
+)
+fluidRow(
+  column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("exp_model_summary"), style="background-color: #ecf3f9"))
 )
 
 # sidebarLayout(
@@ -135,9 +135,9 @@ fluidRow(
 
 ```
 
-In this scenario, high and low-risk individuals are allocated to thr different groups at random, and as a result, the *average treatment effect* estimated in the regression model is correct. 
+In this scenario, high and low-risk individuals are allocated to the different groups at random, and as a result, the **average treatment effect** estimated in the regression model is correct. 
 
-However, for most problems involving some kind of *spatial exposure*, e.g. to a neighborhood environment, it is either unethical, impractical, or impossible to randomize people to different neighborhoods. So, what happens when high- or low-risk individuals are overrepresented in one group vs. another?
+However, for most problems involving some kind of **spatial exposure**, e.g. to a neighborhood environment, it is either unethical, impractical, or impossible to randomize people to different neighborhoods. So, what happens when high- or low-risk individuals are over-represented in one group vs. another?
 
 ### What happens when the groups aren't **balanced**?
 
