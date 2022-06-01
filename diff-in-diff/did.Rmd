@@ -17,6 +17,22 @@ require(FNN)
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
+## Making comparisons between places is hard 
+
+One of the big challenges of real-world epidemiology is in disentangling the effects of some exposure or treatment we want to learn about from the background noise that makes different places…different. These differences come in many forms, including:
+
+1. Variation on socieconomic status (SES) and social power.
+2. Variability in characteristics of the built environment that might impact the health outcome of interest.
+3. Differential access to prevention, diagnosis, and care which way lead to differential disease outcomes among individuals living in different places.
+
+One way to deal with these differences is to conduct a randomized controlled trial (RCT). In a ‘pure’ spatial RCT, individuals might be allocated at random to two different locations which are the same, except that people in one place receive the treatment and those in the other do not. Because the composition of each place - in terms of individual characteristics - is roughly the same due to the randomization, we can then look at the average difference between the groups to estimate the impact of the treatment on a typical member of the population.
+
+Of course, conducting such an experiment is pretty much impossible, probably unethical, and is also unlikely to yield us much useful information about how a particular treatment or exposure might work in the real world. 
+
+Often, when we want to figure out how an exposure or intervention applied in a given place has - or has not - worked, we have to use analytic approaches that let us isolate the changes we are interested in from those resulting from unobserved characteristics of the place itself or the people in it that are unrelated to the ones we care about. 
+
+In this exercise, we will explore one commonly-employed way of doing this, the Difference-in-Differences (DiD) approach. The purpose of this module is not only to introduce you to the DiD approach to estimating treatment and exposure effects from non-randomized, observational data, but also to help you think about how and when such tools are appropriate and also when they might *not* yield useful information.
+
 ## Using Experimental Data
 ### A Hypothetical Trial: Pre-Treatment Outcomes
 
