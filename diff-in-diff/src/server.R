@@ -46,7 +46,7 @@ output$exp_model_summary <- renderPrint({
   summary(exp_model_fit())
 })
 
-output$exp_model_plot <- renderPlotly({
+exp_model_plot <- renderPlotly({
   g <- ggplot(sim_exp_data()) +
     geom_jitter(aes(
       x = treatment,
@@ -67,6 +67,9 @@ output$exp_model_plot <- renderPlotly({
   
   
 })
+
+output$exp_model_plot <- exp_model_plot
+output$exp_model_plot2 <- exp_model_plot
 
 output$selectionError <- renderPlotly({
   conf_range <- confint(exp_model_fit(), "Treatment") - input$beta_t
