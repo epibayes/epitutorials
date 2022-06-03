@@ -183,6 +183,7 @@ fluidRow(
 
 fluidRow(
   column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("exp_model_summary2"), style="background-color: #ecf3f9"))
+  , style="padding-bottom: 10px;"
 )
 
 ```
@@ -222,7 +223,7 @@ fluidRow(
 )
 
 fluidRow(
-  column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("model_summary"), style="background-color: #ecf3f9"))
+  column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("model_summary"), style="background-color: #ecf3f9")), style="padding-bottom: 10px;"
 )
 
 ```
@@ -249,7 +250,7 @@ fluidRow(
   ),
 )
 fluidRow(
-  column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("model_summary2"), style="background-color: #ecf3f9;"))
+  column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("model_summary2"), style="background-color: #ecf3f9;")), style="padding-bottom: 10px;"
 )
 ```
 
@@ -261,18 +262,33 @@ This is where the notion of difference in differences comes from: We use informa
 
 Go back to the last page and manipulate the starting values a bit more and see what impact they have on the outcome here, and then come back!
 
-### Parallel trends
+### Parallel Trends
 
-One critical assumption of the DiD approach is that the change over time between the *control* and *treatment* gropus is parallel, i.e. that the change between pre- and post would be the same for both groups in the absence of intervention. 
+One critical assumption of the DiD approach is that the change over time between the **control** and **treatment** groups is parallel, i.e. that the change between pre and post would be the same for both groups in the absence of intervention. 
 
 Now, let's take a look at what happens when we violate this assumption by increasing or decreasing the rate of change for the experimental group vs. the control group. Moving the value up will make greater change happen more quickly in the experimental vs. control groups.
 
 ```{r, echo=FALSE}
-  sliderInput("beta_t_delta", "Trend difference:", min = -3, max = 3, value = 0)
+fluidRow(
+  column(3,
+  sliderInput("beta_t_delta", "Trend Difference:", min = -3, max = 3, value = 0)
+  ),
+  column(9,
+  plotlyOutput("simDataPlot3")
+  ),
+)
+fluidRow(
+  column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("model_summary3"), style="background-color: #ecf3f9;"),), style="padding-bottom: 10px;"
+)  
+
+
 ```
 
-When might this happen? Remember, we are interested in selection of high or low-risk individuals into the control and experimental groups. What if the people who made changes in their lives, e.g. moving to an environment that facilitated more opportunities for exercise, did so because they were already into fitness? Then, they might see more positive changes than the control group based on who they are. Similarly, if they were more likely to do so because of concerns about worsening health, they might already be on a downward trajectory, and we'd expect to see rises in blood pressure that might make it hard to 'see' the protective benefits of the treatment, even if they were better off than if they had not had it at all.
+When might this happen? Remember, we are interested in selection of high or low-risk individuals into the control and experimental groups. What if the people who made changes in their lives, e.g. moving to an environment that facilitated more opportunities for exercise, did so because they were already into fitness? Then, they might see more positive changes than the control group based on who they are. 
 
+Similarly, if they were more likely to do so because of concerns about worsening health, they might already be on a downward trajectory, and we'd expect to see rises in blood pressure that might make it hard to 'see' the protective benefits of the treatment, even if they were better off than if they had not had it at all.
+
+## Conclusions
 In sum, no framework is a substitute for judgment and for knowing your data! But the difference-in-differences approach can be very helpful for isolating a causal effect when you have reason to believe its assumptions will hold!
 
 ```{r, context="server", code=readLines("src/server.R")}

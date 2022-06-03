@@ -58,7 +58,7 @@ exp_model_plot <- renderPlotly({
     )) +
     geom_smooth(
       aes(x = treatment, y = y),
-      colour = "blue",
+      colour = "black",
       method = "lm",
       se = FALSE
     ) +
@@ -141,7 +141,7 @@ model_summary <- renderPrint({
 
 output$model_summary <- model_summary
 output$model_summary2 <- model_summary
-
+output$model_summary3 <- model_summary
 
 simDataFigure <- reactive({
   df <- sim_full_data()
@@ -208,3 +208,4 @@ simDataPlot <- renderPlotly(simDataFigure())
 
 output$simDataPlot <- simDataPlot
 output$simDataPlot2 <- simDataPlot
+output$simDataPlot3 <- simDataPlot
