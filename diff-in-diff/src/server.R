@@ -41,10 +41,12 @@ exp_model_fit <- reactive({
   return(fit)
 })
 
-
-output$exp_model_summary <- renderPrint({
+exp_model_summary <- renderPrint({
   summary(exp_model_fit())
 })
+
+output$exp_model_summary <- exp_model_summary
+output$exp_model_summary2 <- exp_model_summary
 
 exp_model_plot <- renderPlotly({
   g <- ggplot(sim_exp_data()) +
@@ -133,9 +135,12 @@ model_fit <- reactive({
 })
 
 
-output$model_summary <- renderPrint({
+model_summary <- renderPrint({
   summary(model_fit())
 })
+
+output$model_summary <- model_summary
+output$model_summary2 <- model_summary
 
 
 simDataFigure <- reactive({
@@ -199,4 +204,7 @@ simDataFigure <- reactive({
   
 })
 
-output$simDataPlot <- renderPlotly(simDataFigure())
+simDataPlot <- renderPlotly(simDataFigure())
+
+output$simDataPlot <- simDataPlot
+output$simDataPlot2 <- simDataPlot

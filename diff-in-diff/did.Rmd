@@ -179,6 +179,10 @@ fluidRow(
 
 fluidRow(
   column(12, tags$details(tags$summary("Data Model Plot", style="font-weight: 18px; font-weight: bold; padding: 10px; background-color: #ecf3f9;"), plotlyOutput("exp_model_plot2")))
+, style="padding-bottom: 10px;")
+
+fluidRow(
+  column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("exp_model_summary2"), style="background-color: #ecf3f9"))
 )
 
 ```
@@ -193,55 +197,67 @@ The situation in the last step, where it is difficult to disentangle variability
 
 This is often done via some kind of pre-post comparison: Take blood pressure measurements from individuals in the treatment and control groups before the institution of some policy or intervention, then take their blood pressure after the fact. So, first go ahead and generate some data, and then we'll discuss how to isolate the treatment effect from them.
 
-### Generate some data
+### Generate Some Data
 
-The figure below shows the observational version of our example from before. On the left, are the *pre-treatment* measurements of the control and experimental groups (colors represent risk groups, symbols represent treatment vs. control).
+The figure below shows the observational version of our example from before. On the left, are the **pre-treatment** measurements of the control and experimental groups (colors represent risk groups, symbols represent treatment vs. control).
 
-Now, in addition to having a treatment effect at time 1, we have to account for possible sources of change in the outcome *unrelated to the treatment* between time 0 (treatment) and time 1 (post-treatment). Move the slider below to modify the change in background risk impacting both the experimental and control groups to see what happens to the pre-and post-treatment data in the figure below.
+Now, in addition to having a treatment effect at time 1, we have to account for possible sources of change in the outcome **unrelated to the treatment** between time 0 (treatment) and time 1 (post-treatment). 
+
+Move the slider below to modify the change in background risk impacting both the experimental and control groups to see what happens to the pre-and post-treatment data in the figure below.
 
 The dashed line in the figure shows the estimated pre- and post-treatment values of the outcome for both groups. If you look at the regression results, you can see something here is not quite right:
 
 ```{r, echo=FALSE}
 fluidRow(
-  column(12, sliderInput(
-    "beta_time",
-    "Time Effect:",
-    min = -5,
-    max = 5,
-    value = 3
-  )),
-fluidRow(column(
-  12,
-  plotlyOutput("simDataPlot")
-), ),
+  column(3,
+         sliderInput(
+            "beta_time",
+            "Time Effect:",
+            min = -5,
+            max = 5,
+            value = 3           
+         )),
+  column(9,
+         plotlyOutput("simDataPlot"))
+)
 
-fluidRow(column(
-  12,
-  verbatimTextOutput("model_summary")
-)))
-
-```
-
-This is because the estimated treatment effect in this model is based on a comparison between the *treated* and *untreated* at time 1, but it can't tell the difference between the change over time and the treatment.
-
-That is where the *difference-in-differences* model becomes helpful: This model adds an interaction between the *time* and the *treatment* variable, so:
-
-$\hat{y} = \alpha + \beta_{time} x_{time} + \beta_{treat} x_{treat} + \beta_{treat \times time} x_{treat} x_{time}$
-
-The interaction term gives the specific effect of the *treatment on the treated*.  Check the box below to fit this model to the data and take a look at how the estimates in the figure and regression model change.
-
-```{r, echo=FALSE}
 fluidRow(
-
-  column(6,
-  checkboxInput("did", "Difference-in-difference", value=FALSE)
-  )
-
+  column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("model_summary"), style="background-color: #ecf3f9"))
 )
 
 ```
 
-Now, the red line illustrates the true treatment effect, the solid and dotted lines show the average change over time for the treatment and control groups, respectively. The *dotted* line shows what the value of the outcome for the treatment group *would have been* in the absence of intervention. This is where the notion of *difference in differences* comes from: We use information on the expected difference from time 0 to time 1 from the control group to estimate what the outcome would look like for the treatment group if there was no intervention. Then, the *difference* between this value and the measured value in the *treatment* group is our estimate of the average treatment effect.
+This is because the estimated treatment effect in this model is based on a comparison between the **treated** and **untreated** at time 1, but it can't tell the difference between the change over time and the treatment.
+
+### The Difference-in-Differences Model Helps!
+
+That is where the **difference-in-differences** model becomes helpful: This model adds an interaction between the **time** and the **treatment** variable, so:
+
+$\hat{y} = \alpha + \beta_{time} x_{time} + \beta_{treat} x_{treat} + \beta_{treat \times time} x_{treat} x_{time}$
+
+The interaction term gives the specific effect of the **treatment on the treated**.
+
+Check the box below to fit this model to the data and take a look at how the estimates in the figure and regression model change.
+
+```{r, echo=FALSE}
+fluidRow(
+  column(3,
+  checkboxInput("did", "Difference-in-Difference", value=FALSE)
+  ),
+  column(9,
+  plotlyOutput("simDataPlot2")
+  ),
+)
+fluidRow(
+  column(12, tags$details(tags$summary("Data Summary", style="font-weight: 18px; font-weight: bold; padding: 10px;"), verbatimTextOutput("model_summary2"), style="background-color: #ecf3f9;"))
+)
+```
+
+Now, the red line illustrates the true treatment effect, the solid and dotted lines show the average change over time for the treatment and control groups, respectively. 
+
+The **dotted** line shows what the value of the outcome for the treatment group **would have been** in the absence of intervention. 
+
+This is where the notion of difference in differences comes from: We use information on the expected difference from time 0 to time 1 from the control group to **estimate what the outcome would look like** for the treatment group if there was no intervention. Then, the **difference** between this value and the measured value in the **treatment** group is our estimate of the average treatment effect.
 
 Go back to the last page and manipulate the starting values a bit more and see what impact they have on the outcome here, and then come back!
 
