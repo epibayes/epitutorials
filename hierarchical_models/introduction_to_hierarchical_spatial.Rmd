@@ -1,9 +1,10 @@
 ---
-title: "Modeling individual and spatial variation with hierarchical models" 
+title: "Modeling Individual and Spatial Variation with Hierarchical Models" 
 output: 
   learnr::tutorial:
-      progressive: true
+    progressive: true
 runtime: shiny_prerendered
+description: "Modeling Individual and Spatial Variation with Hierarchical Models"
 ---
 
 ```{r setup, include=FALSE}
@@ -12,9 +13,295 @@ library(learnr)
 #require(bayesplot)
 require(ggplot2)
 require(lhs)
+require(plotly)
 
-source("R/multilevel.R")
+require(purrr)
+require(faux)
+require(shiny)
+require(dplyr)
+require(ggplot2)
+require(nlme)
 
+#### START OF multilevel.R CODE ####
+
+## Simulate from a multilevel model
+
+## N = Number of individuals,
+## G = Number of neighborhoods
+
+
+generateNeighborhoodData <- function(r, beta_n, neighborhood_sd) {
+  G <- 30
+  N <- 1000
+  
+  
+  alpha <- 120
+  #neighborhood_sd <- 5
+  
+  
+  ## Sample individuals into neighborhoods w/equal probability
+  df <- data.frame(
+    neighborhood = 1:G,
+    N = rmultinom(1:G, N, rep(1 / G, G)),
+    walkability = rnorm(G, 0, 1)
+  ) %>%
+    mutate(
+      mu_income = rnorm_pre(walkability, 0, 1, r = r),
+      n_alpha = rnorm(G, alpha, neighborhood_sd) + beta_n *
+        walkability
+    ) %>%
+    filter(N > 0)
+  
+  return(df)
+}
+
+generateIndividualData <- function(df, beta_income) {
+  ind_sd <- 1
+  
+  neighborhoods <-
+    pmap_dfr(df, function(neighborhood,
+                          N,
+                          walkability,
+                          mu_income,
+                          n_alpha) {
+      data.frame(neighborhood = neighborhood,
+                 income = rnorm(N, mu_income, 1)) %>%
+        mutate(y = rnorm(N, n_alpha + beta_income * income, ind_sd))
+    }) %>% inner_join(df)
+  
+  
+  return(neighborhoods)
+}
+
+histogramUI <- function(id) {
+  sidebarLayout(sidebarPanel(
+    h4("Generate Neighborhood-Level Data"),
+    p(
+      "Use the sliders to examine different relationships between neighborhood walkability, average income, and average blood pressure:",
+      style = "font-style: italics;"
+    ),
+    sliderInput(
+      NS(id, "nsd"),
+      "Standard Deviation of Neighborhood-Level Errors",
+      min = 0.5,
+      max = 10,
+      step = 0.1,
+      value = 2
+    ),
+    sliderInput(
+      NS(id, "beta_w"),
+      "Change in Average SBP for 1-unit Changed in Walkability",
+      min = -4,
+      max = 0,
+      step = 0.1,
+      value = -1
+    )
+  ),
+  
+  mainPanel(plotlyOutput(NS(id, "bp"))))
+}
+
+
+histogramServer <- function(id) {
+  moduleServer(id, function(input, output, session) {
+    ## Generate the model data in response to parameter inputs
+    neighborhoodData <-
+      reactive(generateNeighborhoodData(input$r, input$beta_w, input$nsd))
+    individualData <-
+      reactive(generateIndividualData(neighborhoodData(), input$incomebp))
+    
+    output$hist <- renderPlotly({
+      df <- neighborhoodData()
+      g <- ggplot(df, aes(x = walkability, y = mu_income)) +
+        geom_point() +
+        geom_smooth(method = "lm", se = FALSE) +
+        xlab("Neighborhood Walkability") +
+        ylab("Neighborhood Average Income") +
+        xlim(-2.5, 2.5) +
+        ylim(-2.5, 2.5)
+      p <- ggplotly(g)
+      return(p)
+    })
+    
+    output$bp <- renderPlotly({
+      df <- neighborhoodData()
+      g <- ggplot(df, aes(x = walkability, y = n_alpha)) +
+        geom_point() +
+        geom_smooth(method = "lm", se = FALSE) +
+        xlab("Neighborhood Walkability") +
+        ylab("Neighborhood Expected SBP") +
+        xlim(-2.5, 2.5)
+      p <- ggplotly(g)
+      return(p)
+    })
+    
+    
+    output$income <- renderPlotly({
+      df <- neighborhoodData()
+      g <- ggplot(df, aes(x = mu_income, y = n_alpha)) +
+        geom_point() +
+        geom_smooth(method = "lm", se = FALSE) +
+        xlab("Neighborhood Avg. Income") +
+        ylab("Neighborhood Expected SBP") +
+        xlim(-2.5, 2.5)
+      p <- ggplotly(g)
+      return(p)
+    })
+    
+    output$indbp <- renderPlotly({
+      df <- individualData()
+      g <- ggplot(df, aes(x = income, y = y)) +
+        geom_point() +
+        geom_point(aes(colour = walkability)) +
+        geom_smooth(method = "lm", se = FALSE) +
+        xlab("Individual Income") +
+        ylab("Individual SBP") +
+        xlim(-2.5, 2.5)
+      p <- ggplotly(g)
+      return(p)
+    })
+    
+    simpleModel <- reactive({
+      if (input$adjust == TRUE) {
+        f <- y ~ income + walkability
+      } else {
+        f <- y ~ income
+      }
+      
+      return(lm(f, data = individualData()))
+    })
+    
+    multilevelModel <- reactive({
+      if (input$adjust == TRUE) {
+        f <- y ~ income + walkability
+      } else {
+        f <- y ~ income
+      }
+      return(nlme::lme(f, random = ~ 1 |
+                         neighborhood, data = individualData()))
+      
+    })
+    
+    selectedModel <- reactive({
+      if (input$hierarchical == TRUE) {
+        return(multilevelModel())
+      } else {
+        return(simpleModel())
+      }
+    })
+    
+    output$modelOut <- renderPrint({
+      return(summary(selectedModel()))
+    })
+    
+    output$modelResid <- renderPlotly({
+      m <- selectedModel()
+      df <- data.frame(y = resid(m))
+      g <- ggplot(df, aes(sample = y)) + stat_qq() + stat_qq_line()
+      p <- ggplotly(g)
+      return(p)
+      
+    })
+    
+    output$incomeResid <- renderPlotly({
+      df <- individualData()
+      x <- df$income
+      df$resid <- resid(selectedModel())
+      
+      g <-
+        ggplot(df, aes(x = income, y = resid)) + geom_point(aes(colour = walkability)) + geom_smooth(method =
+                                                                                                       "lm", se = FALSE)
+      p <- ggplotly(g)
+      return(p)
+    })
+    
+    output$beta_income_val <- renderText({
+      return(paste0(
+        "Input Value of Income Effect = ",
+        as.character(input$incomebp)
+      ))
+    })
+    
+    output$beta_walk_val <- renderText({
+      return(paste0(
+        "Input Value of Walkability Effect = ",
+        as.character(input$beta_w)
+      ))
+    })
+  })
+  
+}
+
+individualUI <- function(id) {
+  sidebarLayout(sidebarPanel(
+    h4("Generate Individual-Level Data"),
+    p(
+      "Manipulate the relationship between individual-level income and individual SBP.",
+      style = "font-style: italics;"
+    ),
+    sliderInput(
+      NS(id, "incomebp"),
+      "Change in SBP for Each 1-unit Change in Income",
+      min = -4,
+      max = 0,
+      step = 0.1,
+      value = -1
+    )
+  ),
+  mainPanel(plotlyOutput(NS(id, "indbp")),))
+}
+
+modelUI <- function(id) {
+  sidebarLayout(
+    sidebarPanel(
+      h4("Analyze Individual Level Data"),
+      checkboxInput(NS(id, "adjust"), "Adjust for Walkability", value = FALSE),
+      checkboxInput(NS(id, "hierarchical"), "Use Hierarchical Model", value = FALSE),
+      h4("Input Parameter Values"),
+      textOutput(NS(id, "beta_income_val")),
+      textOutput(NS(id, "beta_walk_val"))
+      
+      
+      
+    ),
+    mainPanel(tabsetPanel(
+      tabPanel("Model", verbatimTextOutput(NS(id, "modelOut"))),
+      tabPanel("Normality", plotlyOutput(NS(id, "modelResid"))),
+      tabPanel("Residuals", plotlyOutput(NS(id, "incomeResid")))
+    ))
+  )
+  
+}
+
+correlationUI <- function(id) {
+  sidebarLayout(sidebarPanel(
+    sliderInput(
+      NS(id, "r"),
+      "Correlation Between Neighborhood Walkability and Average Income",
+      min = 0,
+      max = 1,
+      step = 0.02,
+      value = 0.0
+    ),
+  ),
+  mainPanel(plotlyOutput(NS(id, "hist"))))
+  
+}
+
+
+histogramApp <- function() {
+  ui <- fluidPage(
+    histogramUI("hist1"),
+    individualUI("hist1"),
+    modelUI("hist1"),
+    correlationUI("hist1")
+  )
+  server <- function(input, output, session) {
+    histogramServer("hist1")
+  }
+  shinyApp(ui, server)
+}
+#### END OF multilevel.R CODE ####
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
@@ -22,76 +309,97 @@ knitr::opts_chunk$set(echo = FALSE)
 
 The point of this interactive exercise is to introduce you to several issues in the analysis of multi-level, nested data, and the ways tools like hierarchical models can - and can't - help you address them. Specifically, we'll focus on: 
 
-1. Identifying sources of individual- and neighborhood-level variability in a dataset consisting of individual-level observations.
-2. Examine how hierarchical modeling approaches can adjust for unmeasured neighborhood-level confounders.
-3. Understand the potential for mis-estimation of key effects under different balances of *systematic* and *random* variation at the neighborhood level.
+1. **Identifying** sources of individual- and neighborhood-level variability in a dataset consisting of individual-level observations;
+2. **Examining** how hierarchical modeling approaches can adjust for unmeasured neighborhood-level confounders; and
+3. **Understanding** the potential for mis-estimation of key effects under different balances of **systematic** and **random** variation at the neighborhood level.
 
-## Neighborhoods, wealth, and blood pressure
+## Thinking Hypothetically
+### Neighborhoods, Wealth, and Blood Pressure
 
-In this example, imagine individuals are grouped into discrete neighborhoods by wealth (not an unrealistic assumption), and that increasing wealth is also protective against SBP at the individual level
+In this example, imagine individuals are grouped into discrete neighborhoods by wealth (not an unrealistic assumption), and that increasing wealth is also protective against SBP at the individual level.
 
-Now, we'll let a factor that is potentially associated with SBP risk, e.g. (walkability, which could decrease SBP; or exposure to pollution which could increase it), vary across neighborhoods, and we're going to look at what happens when we let that factor increase or decrease along with average neighborhood wealth. 
+Now, we'll let a factor that is potentially associated with SBP risk (such as walkability, which could decrease SBP or exposure to pollution which could increase it) vary across neighborhoods and look at what happens when we let that factor increase or decrease along with average neighborhood wealth. 
 
-Specifically, we're looking at a kind of classic *multilevel* or *hierarchical* model. Again we're interested in a *continuous* outcome at the individual level, i.e. systolic blood pressure. And we're going to model variation in this outcome as a function of:
+Specifically, we're looking at a kind of classic **multilevel** or **hierarchical** model. Again we're interested in a **continuous** outcome at the individual level, i.e. systolic blood pressure. 
+
+We're going to model variation in this outcome as a function of:
 
 
-1. An individual factor - in this case wealth - represented by the *covariate* $x_i$ and model coefficient $\beta$. We assume that wealth is protective, i.e. as wealth goes up, SBP goes down. So we constrain the value of $\beta \le 0$. 
+1. An **individual factor** - in this case wealth - represented by the **covariate** $x_i$ and model coefficient $\beta$. 
+    - We assume that wealth is protective, i.e. as wealth goes up, SBP goes down. So we constrain the value of $\beta \le 0$. 
 
-2. An unobserved attribute of each neighborhood that is associated with either increased or decreased SBP, denoted by the coefficient $\gamma$, which can take on both positive and negative values. To keep things simple, we assume that the intensity of this effect increases from neighborhood 1 to neighborhood 6, just to make things easier to visualize.
+2. An **unobserved attribute** of each neighborhood that is associated with either increased or decreased SBP, denoted by the coefficient $\gamma$, which can take on both positive and negative values. 
+    - To keep things simple, we assume that the intensity of this effect increases from neighborhood 1 to neighborhood 6, just to make things easier to visualize.
 
-## A simple model of individual and contextual risk
+### A Simple Model of Individual and Contextual Risk
 
 In this model we're making two more simplifying assumptions which we can relax later on:
 
-1. Individuals sort *deterministically* into neighborhoods by wealth. The population is just sliced up into 6 neighborhoods with the poorest 1/6 of the population in neighborhood 1, and the wealthiest in neighborhood 6, etc. 
+1. Individuals sort **deterministically** into neighborhoods by wealth. The population is just sliced up into 6 neighborhoods with the poorest 1/6 of the population in neighborhood 1, and the wealthiest in neighborhood 6, etc. 
 
-2. The effects of living in each neighborhood are also *deterministic*, i.e. there is no randomness associated with the effect of living in Neighborhood 3 vs. Neighborhood 1 in SBP. 
+2. The **effects** of living in each neighborhood are also deterministic, i.e. there is no randomness associated with the effect of living in Neighborhood 3 vs. Neighborhood 1 in SBP. 
 
 When we put this all together, we have a model that looks like this:
 
 $y_{ij} = \alpha + \beta x_i + \gamma z_j + \epsilon_i$
 
-In other words, the expected value of SBP for individual $i$ in neighborhood $j$ is a function of her wealth ($x_i$), a condition in her neighborhood of residence ($z_j$) and normally distributed variaton at the individual level ($\epsilon_i$), where $\epsilon_i \sim \text{Normal}(0, \sigma)$ where $\sigma$ is the standard devation of individual SBP outcomes.
+In other words, the expected value of SBP for individual $i$ in neighborhood $j$ is a function of their wealth ($x_i$), a condition in their neighborhood of residence ($z_j$) and normally distributed variaton at the individual level ($\epsilon_i$), where $\epsilon_i \sim \text{Normal}(0, \sigma)$ where $\sigma$ is the standard devation of individual SBP outcomes.
 
 Ok, now that we've laid out some of the preliminaries, time to see what this looks like!
 
-## Generate some data
-
-Move the slider to create an effect in which increasing wealth is associated with decreasing systolic blood pressure, i.e. for each 1-unit increase, there's a *decrease* in SBP.
+## Generate Some Data
+### Change in SBP for Each 1-Unit Change in Individual Wealth
+Move the slider to create an effect in which increasing wealth is associated with decreasing systolic blood pressure, i.e. for each 1-unit increase, there's a **decrease** in SBP.
 
 ```{r}
 sidebarPanel(
-  
-sliderInput("beta_1_n", "Change in SBP for each 1-unit change in individual wealth (smaller values indicate more protective effect of wealth):", min = -3, max = 0, value = 0),
-
+  sliderInput(
+    "beta_1_n",
+    "Change in SBP for Each 1-Unit Change in Individual Wealth (smaller values indicate more protective effect of wealth):",
+    min = -3,
+    max = 0,
+    value = 0
+  ),
 )
 
-mainPanel(
- plotOutput("neighborhoodPlot")
-)
+mainPanel(plotlyOutput("neighborhoodPlot"))
 
 
 ```
-The blue line overlaid on the plot is  a  regression line showing the association between wealth and SBP estimated from these data.
 
-### Including an *unobserved* component of neighborhood-level variation
+The blue line overlaid on the plot is a regression line showing the association between wealth and SBP estimated from these data.
 
-The data above reflect a relationship in which *individual* wealth is protective against cardiovascular disease - at least as measured by systolic blood pressure. 
+### Including an **Unobserved** Component of Neighborhood-Level Variation
 
-Now, we can bring in a piece of neighborhood context that is shared by all members of each neighborhood: Let's imagine that neighborhoods 1-5 sit on a continuum from least-to-most walkable as well, and that this has an independent protective impact on the health of all individuals in each neighborhood, regardless of their individual wealth. 
+The data above reflect a relationship in which individual wealth is **protective** against cardiovascular disease - at least as measured by systolic blood pressure. 
 
-You can manipulate the slider below to see how the visual and quantitative association between wealth and SBP changes when we introduce a decrease in SBP with increasing walkability, which is itself *correlated* with average neighborhood-level wealth.
+Now, we can bring in a piece of neighborhood context that is shared by all members of each neighborhood: 
+
+Let's imagine that neighborhoods 1-5 sit on a continuum from least-to-most walkable as well, and that this has an independent protective impact on the health of all individuals in each neighborhood, regardless of their individual wealth. 
+
+You can manipulate the slider below to see how the visual and quantitative association between wealth and SBP changes when we introduce a decrease in SBP with increasing walkability, which is itself correlated with average neighborhood-level wealth.
 
 ```{r}
 sidebarPanel(
-sliderInput("beta_2_n", "Difference in average SBP between least and most-walkable neighborhood:", min = -10, max = 10, value = 0),
-checkboxInput("n_adjust", "Adjust for neighborhood", FALSE),
-checkboxInput("w_adjust", "Adjust for walkability", FALSE)
-
+  sliderInput(
+    "beta_2_n",
+    "Difference in Average SBP Between Least and Most-Walkable Neighborhood:",
+    min = -10,
+    max = 10,
+    value = 0
+  ),
+  checkboxInput("n_adjust", "Adjust for Neighborhood", FALSE),
+  checkboxInput("w_adjust", "Adjust for Walkability", FALSE)
+  
 )
 
 mainPanel(
-  verbatimTextOutput("n_model_summary")
+  plotlyOutput("neighborhoodPlot2")
+  )
+fluidRow(
+  column(12,
+           verbatimTextOutput("n_model_summary")
+         )
 )
 
 ```
@@ -99,101 +407,12 @@ mainPanel(
 #### Additional things to try
 
 1. What happens to the estimate of the wealth effect if you adjust for walkability?
-2. What happens to the wealth effect estimate if you don't adjust for walkability but *do* adjust for neighborhood?
+2. What happens to the wealth effect estimate if you don't adjust for walkability but **do** adjust for neighborhood?
 3. What about when you adjust for wealth, walkability & neighborhood? 
 
+Finally, tick the box to adjust for neighborhood and see how it impacts the parameter values. This model is just a simple example that treats each neighborhood as its own **categorical variable** since there are only a few of them. But this model has most of the ingredients of a classic hierarchical model. 
 
-```{r, context = "server"}
-group_indices <- function(N, J) {
-    out_groups <- c()
-    split_size <- N %/% J
-
-    for (i in 1:(J - 1)) {
-        out_groups <- c(out_groups, rep(i, split_size))
-    }
-
-    if ((N %% split_size) > 0) {
-        last_indices <- rep(J, N %% split_size)
-    } else {
-        last_indices <- rep(J, split_size)
-    }
-    out_groups <- c(out_groups, last_indices)
-
-    return(out_groups)
-}
-
-
-
-area_data <- reactive({
-  
-J <- 5
-N <- 1000
-alpha_n <- 140
-
-xvals <- 10 * sort(as.vector(randomLHS(N, 1)))
-group_ids <- group_indices(N, J)
-walkability <- (group_ids - 1) / (J - 1)
-
-y_hat <- alpha_n + input$beta_1_n * xvals + input$beta_2_n * walkability
-
-y_sim <- rnorm(length(y_hat), y_hat, 2)
-
-df <- data.frame(x = xvals, walkability = walkability, neighborhood = as.factor(group_ids), y = y_sim)
-
-return(df)
-
-})
-
-output$neighborhoodPlot <- renderPlot({
-g <- ggplot(area_data(), aes(x = x, y = y)) +
-    geom_point(aes(colour = neighborhood)) +
-    xlab("Wealth") +
-    ylab("SBP")
-    
-    if (input$n_adjust == TRUE) {
-      g <- g+ geom_smooth(method = "lm", aes(group = neighborhood), se = FALSE) 
-    } else {
-      g <- g + geom_smooth(method = "lm", se = FALSE) 
-    }
-
-
-return(g)
-})
-
- n_model_fit <- reactive({
-    if (input$n_adjust == TRUE) {
-      
-      if (input$w_adjust == TRUE) {
-              fit <- lm(y ~ x + walkability + neighborhood, data = area_data())
-             names(fit$coefficients) <- c("Intercept", "Wealth", "Walkability", "Neighborhood 2", "Neighborhood 3", "Neighborhood 4", "Neighborhood 5")
-      } else {
-              fit <- lm(y ~ x + neighborhood , data = area_data())
-             names(fit$coefficients) <- c("Intercept", "Wealth", "Neighborhood 2", "Neighborhood 3", "Neighborhood 4", "Neighborhood 5")
-      }
-      
-    } else {
-      
-      if (input$w_adjust == TRUE) {
-                    fit <- lm(y ~ x + walkability, data = area_data())
-       names(fit$coefficients) <- c("Intercept", "Wealth", "Walkability") 
-      } else {
-            fit <- lm(y ~ x, data = area_data())
-       names(fit$coefficients) <- c("Intercept", "Wealth") 
-      }
-
-
-    }
-    return(fit)
-  })
-  
-  output$n_model_summary <- renderPrint({
-    summary(n_model_fit())
-  })
-```
-
-Finally, tick the box to adjust for neighborhood and see how it impacts the parameter values. This model is just a simple example that treats each neighborhood as its own *categorical variable* since there are only a few of them. But this model has most of the ingredients of a classic hierarchical model. 
-
-## Adding more neighborhoods *and* more variability
+## More Neighborhoods & Variability
 
 Now, we'll take a look at what this problem looks like in a slightly more complex context where:
 
@@ -209,7 +428,7 @@ In this example we consider observations from 1000 people sampled randomly from 
 
 2. In addition to this, we're going to allow each neighborhood $j$ to have a mean SBP that deviates from the population mean SBP. This is represented by a *neighborhood-level* error term, which we'll call $\epsilon_j$. This value represents how far the mean value of the systolic blood pressure (SBP) outcome for individuals living in neighborhood $j$ is from the population intercept $\alpha$. Similarly to the individual-level error term, this is normally distributed, i.e. $\epsilon_j \sim \text{Normal}(0, \sigma_j)$, where $\epsilon_j$ is the deviation of the mean SBP in neighborhood $j$ from the average neighborhood-level mean across all neighborhoods. In other words, this represents *between-neighborhood* variation.
 
-## Generate neighborhood-level mean SBP values
+### Generate neighborhood-level mean SBP values
 
 The first thing we're going to do is to simulate values of the neighborhood-level mean SBP. There are two components underlying variability in this example:
 
@@ -264,4 +483,119 @@ correlationUI("hist1")
 
 ```{r, context="server"}
 histogramServer("hist1")
+```
+
+```{r, context = "server"}
+group_indices <- function(N, J) {
+  out_groups <- c()
+  split_size <- N %/% J
+  
+  for (i in 1:(J - 1)) {
+    out_groups <- c(out_groups, rep(i, split_size))
+  }
+  
+  if ((N %% split_size) > 0) {
+    last_indices <- rep(J, N %% split_size)
+  } else {
+    last_indices <- rep(J, split_size)
+  }
+  out_groups <- c(out_groups, last_indices)
+  
+  return(out_groups)
+}
+
+
+
+area_data <- reactive({
+  J <- 5
+  N <- 1000
+  alpha_n <- 140
+  
+  xvals <- 10 * sort(as.vector(randomLHS(N, 1)))
+  group_ids <- group_indices(N, J)
+  walkability <- (group_ids - 1) / (J - 1)
+  
+  y_hat <-
+    alpha_n + input$beta_1_n * xvals + input$beta_2_n * walkability
+  
+  y_sim <- rnorm(length(y_hat), y_hat, 2)
+  
+  df <-
+    data.frame(
+      x = xvals,
+      walkability = walkability,
+      neighborhood = as.factor(group_ids),
+      y = y_sim
+    )
+  
+  return(df)
+  
+})
+
+neighborhoodPlot <- renderPlotly({
+  g <- ggplot(area_data(), aes(x = x, y = y)) +
+    geom_point(aes(colour = neighborhood)) +
+    xlab("Wealth") +
+    ylab("SBP")
+  
+  if (input$n_adjust == TRUE) {
+    g <-
+      g + geom_smooth(method = "lm",
+                      aes(group = neighborhood),
+                      se = FALSE)
+  } else {
+    g <- g + geom_smooth(method = "lm", se = FALSE)
+  }
+  
+  p <- ggplotly(g)
+  return(p)
+})
+output$neighborhoodPlot <- neighborhoodPlot
+output$neighborhoodPlot2 <- neighborhoodPlot
+
+n_model_fit <- reactive({
+  if (input$n_adjust == TRUE) {
+    if (input$w_adjust == TRUE) {
+      fit <- lm(y ~ x + walkability + neighborhood, data = area_data())
+      names(fit$coefficients) <-
+        c(
+          "Intercept",
+          "Wealth",
+          "Walkability",
+          "Neighborhood 2",
+          "Neighborhood 3",
+          "Neighborhood 4",
+          "Neighborhood 5"
+        )
+    } else {
+      fit <- lm(y ~ x + neighborhood , data = area_data())
+      names(fit$coefficients) <-
+        c(
+          "Intercept",
+          "Wealth",
+          "Neighborhood 2",
+          "Neighborhood 3",
+          "Neighborhood 4",
+          "Neighborhood 5"
+        )
+    }
+    
+  } else {
+    if (input$w_adjust == TRUE) {
+      fit <- lm(y ~ x + walkability, data = area_data())
+      names(fit$coefficients) <-
+        c("Intercept", "Wealth", "Walkability")
+    } else {
+      fit <- lm(y ~ x, data = area_data())
+      names(fit$coefficients) <- c("Intercept", "Wealth")
+    }
+    
+    
+  }
+  return(fit)
+})
+
+output$n_model_summary <- renderPrint({
+  summary(n_model_fit())
+})
 ```
