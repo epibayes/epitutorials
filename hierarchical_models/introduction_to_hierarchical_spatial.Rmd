@@ -320,7 +320,7 @@ In this example, imagine individuals are grouped into discrete neighborhoods by 
 
 Now, we'll let a factor that is potentially associated with SBP risk (such as walkability, which could decrease SBP or exposure to pollution which could increase it) vary across neighborhoods and look at what happens when we let that factor increase or decrease along with average neighborhood wealth. 
 
-Specifically, we're looking at a kind of classic **multilevel** or **hierarchical** model. Again we're interested in a **continuous** outcome at the individual level, i.e. systolic blood pressure. 
+Specifically, we're looking at a kind of classic **multilevel** or **hierarchical** model. Again we're interested in a **continuous** outcome at the individual level, i.e. systolic blood pressure (SBP). 
 
 We're going to model variation in this outcome as a function of:
 
@@ -416,62 +416,68 @@ Finally, tick the box to adjust for neighborhood and see how it impacts the para
 
 Now, we'll take a look at what this problem looks like in a slightly more complex context where:
 
-1. We allow there to be more *random variation* in the effect of living in a given place *and*
+1. We allow there to be more **random variation** in the effect of living in a given place;
 
-2. There are more than just a few units, *and*
+2. There are **more than just a few units**; and
 
-3. The number of individuals observed in each neighborhood is not as large as before.
+3. The number of individuals observed in each neighborhood is **not as large** as before.
 
-In this example we consider observations from 1000 people sampled randomly from 30 neighborhoods, more than can be easily dealt with using the approach from the previous example.
+### A New Model
 
-1. Just like in the previous example, we'll model individual-level outcomes as a function of *systematic* and *random* variation. In this case, systematic variation will be represented by the coefficient $\beta$, which represents the relationship between individual wealth and SBP, and normally-distributed random variation by the error term $\epsilon_i$. In other words $\epsilon_i \sim \text{Normal}(0, \sigma_i)$, where $\sigma_i$ is the standard deviation of SBP values *between individuals*.
+In this example, we consider observations from 1000 people sampled randomly from 30 neighborhoods, more than can be easily dealt with using the approach from the previous example.
 
-2. In addition to this, we're going to allow each neighborhood $j$ to have a mean SBP that deviates from the population mean SBP. This is represented by a *neighborhood-level* error term, which we'll call $\epsilon_j$. This value represents how far the mean value of the systolic blood pressure (SBP) outcome for individuals living in neighborhood $j$ is from the population intercept $\alpha$. Similarly to the individual-level error term, this is normally distributed, i.e. $\epsilon_j \sim \text{Normal}(0, \sigma_j)$, where $\epsilon_j$ is the deviation of the mean SBP in neighborhood $j$ from the average neighborhood-level mean across all neighborhoods. In other words, this represents *between-neighborhood* variation.
+Just like in the previous example, we'll model **individual-level outcomes as a function of systematic and random variation**. In this case, systematic variation will be represented by the coefficient $\beta$, which represents the relationship between individual wealth and SBP, and normally-distributed random variation by the error term $\epsilon_i$. In other words, $\epsilon_i \sim \text{Normal}(0, \sigma_i)$, where $\sigma_i$ is the standard deviation of SBP values **between individuals**.
+
+In addition to this, we're going to allow each neighborhood $j$ to have a mean SBP that **deviates from the population mean** SBP. This is represented by a neighborhood-level error term, which we'll call $\epsilon_j$. This value represents how far the mean value of the systolic blood pressure (SBP) outcome for individuals living in neighborhood $j$ is from the population intercept $\alpha$. 
+
+Similarly to the individual-level error term, this is normally distributed, i.e. $\epsilon_j \sim \text{Normal}(0, \sigma_j)$, where $\epsilon_j$ is the **deviation of the mean SBP** in neighborhood $j$ from the average neighborhood-level mean across all neighborhoods. In other words, this represents **between-neighborhood variation**.
 
 ### Generate neighborhood-level mean SBP values
 
 The first thing we're going to do is to simulate values of the neighborhood-level mean SBP. There are two components underlying variability in this example:
 
-1. *Systematic* variation due to difference in the walkability of each neighborhood. This represents the idea that people living in neighborhoods that are more walkable may get more hours of exercise each week, contributing to their overall health and lowering the average SBP of people living in that neighborhood. In this example, walkability is represented as a *z-score*, i.e. in terms of standard deviations above or below the mean walkability of all neighborhoods.
+1. **Systematic variation** due to difference in the walkability of each neighborhood. This represents the idea that people living in neighborhoods that are more walkable may get more hours of exercise each week, contributing to their overall health and lowering the average SBP of people living in that neighborhood. In this example, walkability is represented as a **z-score**, i.e. in terms of standard deviations above or below the mean walkability of all neighborhoods.
 
-2. *Random* variation due to unobserved neighborhood-level factors. This is what causes the neighborhood mean SBP to be greater or smaller than the mean value predicted by our *systematic* model. When $\sigma_N$ - the standard deviation of neighborhood-level means- is small, most of the variability between neighborhoods is due to *systematic*, observed factors.
+2. **Random variation** due to unobserved neighborhood-level factors. This is what causes the neighborhood mean SBP to be larger or smaller than the mean value predicted by our systematic model. When $\sigma_N$ — the standard deviation of neighborhood-level means — is small, most of the variability between neighborhoods is due to **systematic**, observed factors.
 
-
+### Generate Individual-Level SBP Values 
 ```{r}
 histogramUI("hist1")
-```
-
-### Generate individual-level SBP-values 
-
-Now that we have simulated a set of neighborhood level means, let's simulate the individual-level data that constitute the measurements from our simulated study.
-
-In addition to neighborhood features like walkability, other individual-level attributes are likely to impact SBP. For example, people with higher incomes may be more able to access quality care, avoid stressful work environments, etc.,  which may make them more likely to have lower SBP. 
-
-To begin, we'll assume that there is no relationship between individual income and neighborhood walkability, i.e. an neighborhood with low average income is just as likely to be walkable as one with a high average income. Here, income values are expressed as a z-score, with values indicating standard deviations above or below the mean income across all neighborhoods.
-
-Move the slider below to vary the protective effect of income on SBP. Here, the colors of the points represents the walkability of the neighborhoods that individuals live in.
-
-```{r}
 individualUI("hist1")
 ```
 
-### Estimating the effects of wealth, walkabaility, and neighborhood on simulated SBP
+Now that we have simulated a set of neighborhood level means, let's simulate the individual-level data that constitute the measurements from our simulated study.
 
-In this section, we'll look again at the impact of *omitting variables* from our regression model on the conclusions we get from it. Here, imagine we are conducting a study looking just at the relationship between individual income and SBP, and we have no information on the individual neighborhoods people live in. Take a look at what happens when you estimate the effect of income on SBP with and without walkability in the model, and using a regular linear regression model (the `lm` function in R) or a hierarchical regression model that accounts for neighborhood-level *clustering* of risk. 
+In addition to neighborhood features like walkability, other individual-level attributes are likely to impact SBP. For example, people with higher incomes may be more able to access quality care, avoid stressful work environments, etc., which may make them more likely to have lower SBP. 
+
+To begin, we'll assume that there is **no relationship** between individual income and neighborhood walkability, i.e. a neighborhood with low average income is just as likely to be walkable as one with a high average income. Here, income values are expressed as a z-score, with values indicating standard deviations above or below the mean income across all neighborhoods.
+
+Move the **"Change in SBP for Each 1-unit Change in Income" slider** to vary the protective effect of income on SBP. Here, the colors of the points represent the walkability of the neighborhoods that individuals live in.
+
+## The Impact of Omitting Variables
+
+In this section, we'll look again at the impact of **omitting variables** from our regression model on the conclusions we get from it. 
+
+### Estimating the Effects of Wealth, Walkabaility, and Neighborhood on Simulated SBP
+
+Here, imagine we are conducting a study looking just at the relationship between individual income and SBP, and we have no information on the individual neighborhoods people live in. Take a look at what happens when you estimate the effect of income on SBP with and without walkability in the model, and using a regular linear regression model (the `lm` function in R) or a hierarchical regression model that accounts for **neighborhood-level clustering** of risk. 
 
 ```{r}
 modelUI("hist1")
 ```
 
-Take a look at the different panels, which show 1) the model results, 2) the distribution of the model *residuals* as compared to a normal distribution (known as a [Q-Q plot](https://en.wikipedia.org/wiki/Q%E2%80%93Q_plot)), and 3) a plot of the model residuals plotted against our variable of interest, income. 
+Take a look at the different panels, which show
+1. The model results, 
+2. The distribution of the model **residuals** as compared to a normal distribution (known as a [Q-Q plot](https://en.wikipedia.org/wiki/Q%E2%80%93Q_plot)), and 
+3. A plot of the model residuals plotted against our variable of interest, income. 
 
 #### Additional Questions
 
 1. Under what conditions do you get an over-estimate of the protective impact of income on SBP?
-2. Does adjusting for walkability without accounting for neighborhood *clustering* get better results? When does it not work to do this?
+2. Does adjusting for walkability without accounting for neighborhood **clustering** get better results? When does it not work to do this?
 3. Are there situations in which adjusting for neighborhood clustering does not bring about the appropriate values of the input values?
 
-### Introducing correlation between *observed* and *unobserved* factors.
+### Introducing correlation between **observed** and **unobserved** factors.
 
 Now, we're going to try to see what happens when we add some more complexity. Up until this point, we've assumed that neighborhood wealth and walkability are unrelated. Obviously this doesn't square with our experiences of the real world, in which certain desirable attributes, such as walkability, lead to an increase in prices and the average wealth of people living there.
 
