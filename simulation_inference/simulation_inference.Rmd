@@ -1,9 +1,10 @@
 ---
-title: "Using simulation to better understand Bayesian and Frequentist inference"
+title: "Using Simulation to Better Understand Bayesian and Frequentist Inference"
 output: 
   learnr::tutorial:
     progressive: true
 runtime: shiny_prerendered
+description: "Using Simulation to Better Understand Bayesian and Frequentist Inference"
 ---
 
 ```{r setup, include=FALSE}
@@ -11,48 +12,76 @@ library(learnr)
 require(rstanarm)
 require(bayesplot)
 require(ggplot2)
+require(plotly)
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
 
-## Sampling from a Normal distribution
+## Sampling from a Normal Distribution
+### Introduction
+In this example, we're going to go back to basics, and use both a formula and simulation to calculate confidence intervals for a **sample mean**. 
 
-In this example, we're going to go back to basics, and use both a formula and simulation to calculate confidence intervals for a *sample mean*. So, first, pick a mean and standard deviation and number of samples to draw from a Normal distribution. 
+### Mean and Standard Deviation are Impacted by Sample Size
+First, pick a mean and standard deviation and number of samples to draw from a Normal distribution. 
 
-Move the sliders around to get a sense of how much things change as you incrase the sample size.
+Move the sliders around to get a sense of how much things change as you increase the sample size.
 
 ```{r, echo=FALSE}
+sidebarPanel(
+  numericInput(
+    "mean",
+    "Mean:",
+    value = 0
+  ),
+  sliderInput(
+    "sd",
+    "Standard Deviation:",
+    min = 0.1,
+    max = 4,
+    value = 1
+  ),
+  sliderInput(
+    "nsamp",
+    "Number of Samples:",
+    min = 1,
+    max = 500,
+    value = 20
+  )
+)
+mainPanel(
+  plotlyOutput("distPlot2"),
+  plotOutput("distPlot")
+  )
 
-numericInput("mean", "Mean:", value = 0)
-
-numericInput("sd", "Standard Deviation:", min = 0.1, max = 4, value = 1)
-
-sliderInput("nsamp", "Number of samples:", min = 1, max = 500, value = 20)
-
-
-plotOutput("distPlot")
 ```
 
 So, for this one sample, we now have  the following sample mean and sample standard deviation:
 ```{r, echo=FALSE}
-textOutput("samplemean")
-textOutput("se")
+fluidRow(
+  column(12,
+         textOutput("samplemean"),
+         textOutput("se"),
+         style="background-color: #f5f5f5; font-weight: bold;"
+         )
+)
+
 ```
 
 ```{r, context="server"}
 
 x <- reactive({rnorm(input$nsamp, input$mean, input$sd)})
 
+output$distPlot2 <- renderPlotly({
+  plot_ly(x=x(), histfunc='mean(x)', type="histogram") %>% layout(yaxis = list(title="Frequency"),bargap = 0.01)
+})
 output$distPlot <- renderPlot({
-
   hist(x(),  col = 'darkgray', border = 'white', xlab = mean(x))
 })
-
-output$samplemean <- renderText({paste0("Sample mean = ", round(mean(x()),2))})
-
+output$samplemean <- renderText({paste0("Sample Mean = ", round(mean(x()),2))})
 
 
-output$se <- renderText({paste0("Sample standard deviation = ", round(sd(x()),2))})
+
+output$se <- renderText({paste0("Sample Standard Deviation = ", round(sd(x()),2))})
 
 ```
 
