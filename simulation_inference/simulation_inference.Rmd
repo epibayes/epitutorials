@@ -16,7 +16,6 @@ require(plotly)
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-
 ## Sampling from a Normal Distribution
 ### Introduction
 In this example, we're going to go back to basics, and use both a formula and simulation to calculate confidence intervals for a **sample mean**. 
@@ -46,33 +45,29 @@ sidebarPanel(
     min = 1,
     max = 500,
     value = 20
-  )
-)
-mainPanel(
-  plotlyOutput("distPlot2"),
-  plotOutput("distPlot")
-  )
-
-```
-
-So, for this one sample, we now have  the following sample mean and sample standard deviation:
-```{r, echo=FALSE}
-fluidRow(
+  ),
+  fluidRow(
   column(12,
          textOutput("samplemean"),
          textOutput("se"),
-         style="background-color: #f5f5f5; font-weight: bold;"
+         style="font-weight: bold;"
          )
 )
+)
+mainPanel(
+  plotlyOutput("distPlot2"),
+  plotOutput("distPlot"),
+  )
 
 ```
+
 
 ```{r, context="server"}
 
 x <- reactive({rnorm(input$nsamp, input$mean, input$sd)})
 
 output$distPlot2 <- renderPlotly({
-  plot_ly(x=x(), histfunc='mean(x)', type="histogram") %>% layout(yaxis = list(title="Frequency"),bargap = 0.01)
+  plot_ly(x=x(), histfunc= 'avg', type="histogram") %>% layout(yaxis = list(title="Frequency"),bargap = 0.01)
 })
 output$distPlot <- renderPlot({
   hist(x(),  col = 'darkgray', border = 'white', xlab = mean(x))
@@ -86,20 +81,19 @@ output$se <- renderText({paste0("Sample Standard Deviation = ", round(sd(x()),2)
 ```
 
 ## Calculating Confidence Intervals
-
-The classic approach to calculating 95% confidence intervals for a population mean is to look up the appropriate value in a *t-table*, as a function of the number of *degrees of freedom*, i.e. the number of overall samples contributing to the mean.
+### The T-Table Approach
+The classic approach to calculating 95% confidence intervals for a population mean is to look up the appropriate value in a **t-table**, as a function of the number of **degrees of freedom**, i.e. the number of overall samples contributing to the mean.
 
 In R, we can do this as follows, where $s$ is the sample standard deviation and $a$ is the sample mean.
 
-```{r eval=FALSE, echo = TRUE}
+```{r, eval=FALSE, echo = TRUE}
 
-## First calculate the standard error using the quantiles of 
-## the t-distribution
+## First calculate the standard error using the quantiles of the t-distribution
 
 
 error <- qt(0.975, df = n-1)*(s/sqrt(n))
 
-## Then calculate upper and lower confidence limits
+## Then, calculate upper and lower confidence limits
 lower_ci <- a - error
 upper_ci <- a + error
 
@@ -107,9 +101,12 @@ upper_ci <- a + error
 
 Now, go ahead and calculate these for the input values above:
 
-```{r}
-actionButton("ci", "Calculate Confidence Intervals")
-textOutput("sse")
+```{r, echo=FALSE}
+fluidRow(
+  column(3, actionButton("ci", HTML("Calculate Confidence<br/> Intervals"))),
+  column(9, verbatimTextOutput("sse", placeholder=TRUE))
+)
+
 ```
 
 ```{r, context="server"}
@@ -117,13 +114,13 @@ sse <- eventReactive(input$ci, {
   qt(0.975, df = input$nsamp-1)*(sd(x())/sqrt(input$nsamp))
 })
 
-output$sse <- renderText({
-  paste0("Sample Mean = ", round(mean(x()),2), " Standard error = ", round(sse(), 2)," 95% CI  =", round(mean(x()) - sse(),2), ", ",round(mean(x())+sse(),2))
+output$sse <- renderPrint({
+  paste0("Sample Mean = ", round(mean(x()),2), " Standard Error = ", round(sse(), 2)," 95% CI = ", round(mean(x()) - sse(),2), ", ",round(mean(x())+sse(),2))
   }
   )
 ```
 
-### Yeah, but what does that mean?
+### Yeah, But What Does That Mean?
 
 We are supposed to interpret these confidence intervals as meaning "95% of the time, the *true mean* will fall between the confidence intervals. So, why don't we test the proposition?
 
