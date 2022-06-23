@@ -122,7 +122,7 @@ output$sse <- renderPrint({
 
 ### Yeah, But What Does That Mean?
 
-We are supposed to interpret these confidence intervals as meaning "95% of the time, the *true mean* will fall between the confidence intervals. So, why don't we test the proposition?
+We are supposed to interpret these confidence intervals as meaning "95% of the time, the **true mean** will fall between the confidence intervals. So, why don't we test the proposition?
 
 First, let's take a look at the distribution of *sample means* we get from taking 1000 samples:
 
