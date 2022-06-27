@@ -310,12 +310,12 @@ N <- 500
 z <- cumsum(rnorm(N,0,1))
 df <- data.frame(x = 1:N, y = z)
 g <- ggplot(df, aes(x=x,y=y)) + 
-  geom_point() + 
+  geom_point(size=0.5) + 
   geom_line() + 
   xlab("Step") + 
   ylab("Proposed Value")
 
-plot(g)
+ggplotly(g)
 ```
 
 3. Evaluate the **likelihood ratio** between the last value of $\mu$ and the proposed value, $\mu_i$. We can get this directly from the `dnorm` function in R, by first evaluating the likelihood of the observed data $y$ with respect to both $\mu$ and $\mu'$, like so (in this case assuming a totally non-informative prior for simplicity): 
