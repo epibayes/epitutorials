@@ -17,30 +17,35 @@ require(waiter)
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
+## What is Smoothing?
+### A Brief Introduction to Smoothing
+Often, the task of modeling - spatial and otherwise - is focused on understanding what happens **between** the data points we are able to observe. Just like Lisa Simpson reminds us that jazz is in the space between the notes, smoothing happens in between the data points.
 
+<div style="width: 100%; height: 40vh;">
+<iframe width="100%;" height="100%;" src="https://www.youtube.com/embed/BbeilmP2wY8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</div>
 
-## What is smoothing?
-
-Often, the task of modeling - spatial and otherwise - is focused on understanding what happens *between* the data points we are able to observe. Just like Lisa Simpson reminds us that jazz is in the space *between* the notes, smoothing happens in between the data points.
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/BbeilmP2wY8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
+### Smoothing is a Tool
 In spatial analysis, smoothing is a key tool that is used in a number of ways:
 
-1. **Visualization**: A bunch of points on a map are hard to interpret, so tools that make them into a *continuous* surface conveying some sort of information are much easier to digest.
+1. **Visualization**: A bunch of points on a map are hard to interpret, so tools that make them into a **continuous surface** conveying some sort of information are much easier to digest.
 
 2. **Inference**: We often care about finding areas of elevated or decreased risk, so-called hot and cold spots. Spatial smoothing allows us to highlight areas in which risk of some outcome is elevated across multiple observations.
 
 3. **Prediction**: Our observed data may represent only a subset of the population. In this case, we can use smoothing to say something more about what might be going on between the observed data points in a way that might guide future interventions and/or data collection.
 
-In this tutorial, we will introduce some key concepts and tools for smoothing and visualizing potentially non-linear data. We will focus on *local regression* techniques for continuous outcomes, e.g. BMI, blood pressure, etc, in in one dimension, e.g. in response to some exposure, and in two dimensions representing x and y spatial coordinates. In a future tutorial we will look at complementary approaches to spatial *density* estimation which let us estimate the probability of an event occurring in space that build on the concepts discussed in this tutorial.
+### Tutorial Overview
+In this tutorial, we will introduce some key concepts and tools for smoothing and visualizing potentially non-linear data. 
 
-## Smoothing in one dimension
+We will focus on **local regression** techniques for continuous outcomes, e.g. BMI, blood pressure, etc, in in one dimension, e.g. in response to some exposure, and in two dimensions representing x and y spatial coordinates. 
 
+In a future tutorial we will look at complementary approaches to **spatial density estimation** which let us estimate the probability of an event occurring in space that build on the concepts discussed in this tutorial.
+
+## Smoothing in One Dimension
+### Generate Data
 Our first task will be to generate some data that we'll use as input to our smoother from a linear model of the classic sort, i.e. $y_i \sim Normal(\alpha + \beta x_i, \sigma^2)$:
 
 ```{r, echo=FALSE}
-
 sidebarPanel(
   use_waiter(),
 
@@ -55,9 +60,11 @@ mainPanel(
 
 ```
 
-The overlaid black line is the best-fit regression line obtained from the least-squares regression function in R, i.e. `lm(y ~ x, data = df)`. Nothing too surprising here. But what happens when we allow our data to be *non*-linear, coming from something like a sine function? 
+The overlaid red line is the **best-fit regression line** obtained from the least-squares regression function in R, i.e. `lm(y ~ x, data = df)`. Nothing too surprising here. 
 
-Then, our formula looks something like $y_i \sim Normal(\alpha + A*sin(F*x_i)), \sigma^2$, where $A$ is the amplitude of the sine function, and $F$ is its frequency. 
+But what happens when we allow our data to be **non-linear**, coming from something like a sine function? 
+
+Then, our formula looks something like $y_i \sim Normal(\alpha + A*sin(F*x_i)), \sigma^2$, where $A$ is the **amplitude** of the sine function, and $F$ is its **frequency**. 
 
 Try moving the sliders around below and see what happens to the simulated data above. The panel below illustrates what the underlying sine function looks like without any noise:
 
@@ -106,9 +113,9 @@ output$simDataPlot <- renderPlotly({
   df$pred <- predict(lm(y ~ x, data = df))
   
   g <- ggplot(df, aes(x=x)) +
-    geom_point(aes(y=y), size = 0.1) + 
-    geom_line(aes(y = y), size = 0.1, colour = "gray") +
-    geom_line(aes(y = pred)) +
+    geom_point(aes(y=y), size = 0.5) + 
+    geom_line(aes(y = y), size = 0.5, colour = "gray") +
+    geom_line(aes(y = pred), color="red") +
     xlim(0, 10) 
   
   return(ggplotly(g))
@@ -227,13 +234,13 @@ knn_vals <- reactive({
 
 ### Beyond Linear Models
 
-Now, we can start looking at what happens when we fit some kind of model to our data. Here, the figure shows the original data, with the predictions of a simple linear model predicting y as a linear function of x overlaid. Try turning on the *non-linear* model, which is a commonly-used type of smoother, called a kernel smoother or kernel regression model. 
+Now, we can start looking at what happens when we fit some kind of model to our data. Here, the figure shows the original data, with the predictions of a simple linear model predicting y as a linear function of x overlaid. Try turning on the **non-linear** model, which is a commonly-used type of smoother called a **kernel smoother** or **kernel regression model**. 
 
 In a kernel smoother, a subset of points near to the point of interest as used to estimate the value of the unobserved smooth function of interest.
 
-What a kernel function does is to weight points based on their distance from the point of interest. In the simplest version of smoothing, we can use this to take a weighted average. 
+What a kernel function does is to **weigh points based on their distance from the point of interest**. In the simplest version of smoothing, we can use this to take a weighted average. 
 
-So, if $h$ is the *bandwidth* of the smoother, in this case defined as the proportion of all the observed points used to estimate the function at each point, we can define a kernel function $f(d|h)$ which returns a weight from 0 to 1 for each point in the space as a function of its distance, $d$, from the point of interest. The figure below shows what this type of weighted moving average looks like for varying values of $h$.
+So, if $h$ is the **bandwidth** of the smoother, in this case defined as the proportion of all the observed points used to estimate the function at each point, we can define a kernel function $f(d|h)$ which returns a weight from 0 to 1 for each point in the space as a function of its distance, $d$, from the point of interest. The figure below shows what this type of weighted moving average looks like for varying values of $h$.
 
 For continuous outcomes, like systolic blood pressure, a commonly used kernel function is the *tri-cube* kernel, $w(x) = (1- |d|^3)^3$, where $d$ is the distance from the point of interest, scaled to fall on the range from 0 to 1, where 1 is the maximum distance within the bandwidth of the kernel. So, for a maximum distance of 1, it looks like this:
 
@@ -242,7 +249,7 @@ x <- seq(from = -1, to = 1, by = 0.01)
 y <- (1-abs(x)**3)**3
 df <- data.frame(x = x, y = y)
 g <- ggplot(df, aes(x=x, y=y)) + geom_point() + xlab("Distance") + ylab("Weight")
-plot(g)
+ggplotly(g)
 ```
 
 When you click on the plot, it will highlight the points used for interpolation at the selected point in red, and highlight the point itself in blue. 
