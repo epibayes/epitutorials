@@ -56,7 +56,7 @@ sidebarPanel(
 )
 mainPanel(
   plotlyOutput("distPlot2"),
-  plotOutput("distPlot"),
+  # plotOutput("distPlot"),
   )
 
 ```
