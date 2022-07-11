@@ -99,19 +99,38 @@ upper_ci <- a + error
 
 ```
 
-Now, go ahead and calculate these for the input values above:
+<!-- Now, go ahead and calculate these for the input values above: -->
+
+Updating the mean, sample size, and standard deviation from the **"[Sampling from a Normal Distribution"](#section-mean-and-standard-deviation-are-impacted-by-sample-size)** exercise will update the confidence limits below:
 
 ```{r, echo=FALSE}
+# fluidRow(
+#   column(3, actionButton("ci", HTML("Calculate Confidence<br/> Intervals"))),
+#   # column(9, verbatimTextOutput("sse", placeholder=TRUE))
+#   column(9, plotlyOutput("ssePlot"))
+# )
+
 fluidRow(
-  column(3, actionButton("ci", HTML("Calculate Confidence<br/> Intervals"))),
-  column(9, verbatimTextOutput("sse", placeholder=TRUE))
+  column(12, plotlyOutput("ssePlot"))
 )
 
 ```
 
 ```{r, context="server"}
-sse <- eventReactive(input$ci, {
-  qt(0.975, df = input$nsamp-1)*(sd(x())/sqrt(input$nsamp))
+
+sse <- eventReactive(input$nsamp, {qt(0.975, df = input$nsamp-1)*(sd(x())/sqrt(input$nsamp))})
+  
+
+ssePlot <- eventReactive(list(input$nsamp, input$mean, input$sd),{
+
+  df <- data.frame(mean = round(mean(x()),2), lowCI= round(mean(x()) - sse(),2), highCI = round(mean(x())+sse(),2))
+
+g <- ggplot(df)  + geom_errorbar(aes(x = 1, ymin = lowCI, ymax = highCI), size=2) + geom_point(aes(x = 1, y = mean), size=2)
+  return(ggplotly(g))
+})
+
+output$ssePlot <- renderPlotly({
+  return(ssePlot())
 })
 
 output$sse <- renderPrint({
