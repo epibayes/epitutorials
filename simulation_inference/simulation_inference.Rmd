@@ -113,14 +113,19 @@ Updating the mean, sample size, and standard deviation from the **"[Sampling fro
 fluidRow(
   column(12, plotlyOutput("ssePlot"))
 )
+fluidRow(
+  column(12, verbatimTextOutput("sse", placeholder=TRUE))
+)
 
 ```
 
 ```{r, context="server"}
+# sse is a function that listens to nsamp and calculates sse.
 
 sse <- eventReactive(input$nsamp, {qt(0.975, df = input$nsamp-1)*(sd(x())/sqrt(input$nsamp))})
   
-
+# ssePlot is a function that listens to the nsamp, mean, and sd and when any of those change, updates a dataframe that holds the mean, lower CI, and upper CI. These will also update if sse updates (basically if nsamp updates).
+# then, it will generate a ggplot-errorbar that uses x as a random base (currently set at 1 for the plot to generate), ymin/maxes based on the low and high CIs, and a geom_point placed at the x (set at 1, the same value passed to the geom_errorbar).
 ssePlot <- eventReactive(list(input$nsamp, input$mean, input$sd),{
 
   df <- data.frame(mean = round(mean(x()),2), lowCI= round(mean(x()) - sse(),2), highCI = round(mean(x())+sse(),2))
