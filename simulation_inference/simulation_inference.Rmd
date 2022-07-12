@@ -101,7 +101,7 @@ upper_ci <- a + error
 
 <!-- Now, go ahead and calculate these for the input values above: -->
 
-Updating the mean, sample size, and standard deviation from the **"[Sampling from a Normal Distribution"](#section-mean-and-standard-deviation-are-impacted-by-sample-size)** exercise will update the confidence limits below:
+Updating the mean, sample size, and standard deviation will update the confidence intervals below:
 
 ```{r, echo=FALSE}
 # fluidRow(
@@ -109,10 +109,33 @@ Updating the mean, sample size, and standard deviation from the **"[Sampling fro
 #   # column(9, verbatimTextOutput("sse", placeholder=TRUE))
 #   column(9, plotlyOutput("ssePlot"))
 # )
-
-fluidRow(
-  column(12, plotlyOutput("ssePlot"))
+sidebarPanel(
+  numericInput(
+    "mean2",
+    "Mean:",
+    value = 0
+  ),
+  sliderInput(
+    "sd2",
+    "Standard Deviation:",
+    min = 0.1,
+    max = 4,
+    value = 1
+  ),
+  sliderInput(
+    "nsamp2",
+    "Number of Samples:",
+    min = 2,
+    max = 500,
+    value = 20
+  ),
 )
+mainPanel(
+  plotlyOutput("ssePlot")
+)
+# fluidRow(
+#   column(12, plotlyOutput("ssePlot"))
+# )
 fluidRow(
   column(12, verbatimTextOutput("sse", placeholder=TRUE))
 )
@@ -120,13 +143,14 @@ fluidRow(
 ```
 
 ```{r, context="server"}
-# sse is a function that listens to nsamp and calculates sse.
+# sse is a function that listens to nsamp2 and calculates sse.
 
-sse <- eventReactive(input$nsamp, {qt(0.975, df = input$nsamp-1)*(sd(x())/sqrt(input$nsamp))})
+sse <- eventReactive(input$nsamp2, {qt(0.975, df = input$nsamp2-1)*(sd(x())/sqrt(input$nsamp2))})
   
-# ssePlot is a function that listens to the nsamp, mean, and sd and when any of those change, updates a dataframe that holds the mean, lower CI, and upper CI. These will also update if sse updates (basically if nsamp updates).
+# ssePlot is a function that listens to the nsamp2, mean2, and sd2 and when any of those change, updates a dataframe that holds the mean, lower CI, and upper CI. These will also update if sse updates (basically if nsamp2 updates).
 # then, it will generate a ggplot-errorbar that uses x as a random base (currently set at 1 for the plot to generate), ymin/maxes based on the low and high CIs, and a geom_point placed at the x (set at 1, the same value passed to the geom_errorbar).
-ssePlot <- eventReactive(list(input$nsamp, input$mean, input$sd),{
+
+ssePlot <- eventReactive(list(input$nsamp2, input$mean2, input$sd2),{
 
   df <- data.frame(mean = round(mean(x()),2), lowCI= round(mean(x()) - sse(),2), highCI = round(mean(x())+sse(),2))
 
@@ -138,8 +162,13 @@ output$ssePlot <- renderPlotly({
   return(ssePlot())
 })
 
+
+sseText <- eventReactive(list(input$nsamp2, input$mean2, input$sd2), {
+    paste0("Sample Mean = ", round(mean(x()),2), " Standard Error = ", round(sse(), 2)," 95% CI = ", round(mean(x()) - sse(),2), ", ",round(mean(x())+sse(),2))
+})
+
 output$sse <- renderPrint({
-  paste0("Sample Mean = ", round(mean(x()),2), " Standard Error = ", round(sse(), 2)," 95% CI = ", round(mean(x()) - sse(),2), ", ",round(mean(x())+sse(),2))
+  return(sseText())
   }
   )
 ```
