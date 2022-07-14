@@ -69,9 +69,10 @@ x <- reactive({rnorm(input$nsamp, input$mean, input$sd)})
 output$distPlot2 <- renderPlotly({
   plot_ly(x=x(), histfunc= 'avg', type="histogram") %>% layout(yaxis = list(title="Frequency"),bargap = 0.01)
 })
-output$distPlot <- renderPlot({
-  hist(x(),  col = 'darkgray', border = 'white', xlab = mean(x))
-})
+# output$distPlot <- renderPlot({
+#   hist(x(),  col = 'darkgray', border = 'white', xlab = mean(x))
+# })
+
 output$samplemean <- renderText({paste0("Sample Mean = ", round(mean(x()),2))})
 
 
@@ -113,7 +114,8 @@ sidebarPanel(
   numericInput(
     "mean2",
     "Mean:",
-    value = 0
+    value = 0,
+    min = 0
   ),
   sliderInput(
     "sd2",
@@ -143,34 +145,56 @@ fluidRow(
 ```
 
 ```{r, context="server"}
+
+# x2 is a function that listens to and rnorms nsamp2, mean2, and sd2
+x2 <- reactive({rnorm(input$nsamp2, input$mean2, input$sd2)})
+
+
 # sse is a function that listens to nsamp2 and calculates sse.
+sse <-
+  eventReactive(input$nsamp2, {
+    qt(0.975, df = input$nsamp2 - 1) * (sd(x2()) / sqrt(input$nsamp2))
+  })
 
-sse <- eventReactive(input$nsamp2, {qt(0.975, df = input$nsamp2-1)*(sd(x())/sqrt(input$nsamp2))})
-  
 # ssePlot is a function that listens to the nsamp2, mean2, and sd2 and when any of those change, updates a dataframe that holds the mean, lower CI, and upper CI. These will also update if sse updates (basically if nsamp2 updates).
-# then, it will generate a ggplot-errorbar that uses x as a random base (currently set at 1 for the plot to generate), ymin/maxes based on the low and high CIs, and a geom_point placed at the x (set at 1, the same value passed to the geom_errorbar).
+# then, it will generate a ggplot-errorbar that uses x as a random base (currently set at 1 for the plot to generate), ymin/maxes based on the low and high CIs, and a geom_point placed at the x (set at 1, the same value passed to the geom_errorbar) with the y coord being the mean.
 
-ssePlot <- eventReactive(list(input$nsamp2, input$mean2, input$sd2),{
-
-  df <- data.frame(mean = round(mean(x()),2), lowCI= round(mean(x()) - sse(),2), highCI = round(mean(x())+sse(),2))
-
-g <- ggplot(df)  + geom_errorbar(aes(x = 1, ymin = lowCI, ymax = highCI), size=2) + geom_point(aes(x = 1, y = mean), size=2)
-  return(ggplotly(g))
-})
+ssePlot <-
+  eventReactive(list(input$nsamp2, input$mean2, input$sd2), {
+    df <-
+      data.frame(
+        mean = round(mean(x2()), 2),
+        lowCI = round(mean(x2()) - sse(), 2),
+        highCI = round(mean(x2()) + sse(), 2)
+      )
+    
+    g <-
+      ggplot(df)  + geom_errorbar(aes(x = 1, ymin = lowCI, ymax = highCI), size = 2) + geom_point(aes(x = 1, y = mean), size = 2)
+    return(ggplotly(g))
+  })
 
 output$ssePlot <- renderPlotly({
   return(ssePlot())
 })
 
 
-sseText <- eventReactive(list(input$nsamp2, input$mean2, input$sd2), {
-    paste0("Sample Mean = ", round(mean(x()),2), " Standard Error = ", round(sse(), 2)," 95% CI = ", round(mean(x()) - sse(),2), ", ",round(mean(x())+sse(),2))
-})
+sseText <-
+  eventReactive(list(input$nsamp2, input$mean2, input$sd2), {
+    paste0(
+      "Sample Mean = ",
+      round(mean(x2()), 2),
+      " Standard Error = ",
+      round(sse(), 2),
+      " 95% CI = ",
+      round(mean(x2()) - sse(), 2),
+      ", ",
+      round(mean(x2()) + sse(), 2)
+    )
+  })
 
 output$sse <- renderPrint({
   return(sseText())
-  }
-  )
+})
 ```
 
 ### Yeah, But What Does That Mean?
@@ -181,28 +205,69 @@ First, let's take a look at the distribution of **sample means** we get from tak
 
 ```{r, echo=FALSE}
 
-fluidRow(
-  column(12, actionButton("sm", "Simulate Sample Means")),
+# fluidRow(
+#   column(12, actionButton("sm", "Simulate Sample Means")),
+# )
+# fluidRow(
+#   column(12, plotOutput("samplemeans")),
+#    style="border: 1px solid #e6e6e6; padding: 10px 0px; margin: 10px 0px;")
+
+sidebarPanel(
+    numericInput(
+    "mean3",
+    "Mean:",
+    value = 0,
+    min = 0
+  ),
+  sliderInput(
+    "sd3",
+    "Standard Deviation:",
+    min = 0.1,
+    max = 4,
+    value = 1
+  ),
+  sliderInput(
+    "nsamp3",
+    "Number of Samples:",
+    min = 2,
+    max = 500,
+    value = 20
+  ),
 )
-fluidRow(
-  column(12, plotOutput("samplemeans")),
-   style="border: 1px solid #e6e6e6; padding: 10px 0px; margin: 10px 0px;")
+mainPanel(
+  # plotOutput("samplemeans"),
+  plotlyOutput("samplemeansPlotly")
+)
 
 ```
 
 ```{r, context = "server"}
 
-sm_data <- eventReactive(input$sm, {
+# sm_data <- eventReactive(input$sm, {
+#   mean_output <- rep(0, 1000)
+#   for (i in 1:1000) {
+#     mean_output[i] <- mean(rnorm(input$nsamp, mean = input$mean, sd = input$sd))
+#   }
+#   
+#   return(mean_output)
+# 
+# })
+
+sm_data <- eventReactive(list(input$nsamp3, input$mean3, input$sd3), {
   mean_output <- rep(0, 1000)
   for (i in 1:1000) {
-    mean_output[i] <- mean(rnorm(input$nsamp, mean = input$mean, sd = input$sd))
+    mean_output[i] <- mean(rnorm(input$nsamp3, mean = input$mean3, sd = input$sd3))
   }
   
   return(mean_output)
 
 })
 
-output$samplemeans <- renderPlot({hist(sm_data(), xlab = paste0("Standard error of the mean = ", round(1.67*sd(sm_data()),2)))})
+# output$samplemeans <- renderPlot({hist(sm_data(), xlab = paste0("Standard error of the mean = ", round(1.67*sd(sm_data()),2)))})
+
+output$samplemeansPlotly <- renderPlotly({
+  plot_ly(x=sm_data(), histfunc= 'avg', type="histogram") %>% layout(xaxis = list(title = paste0("<b>Standard Error of the Mean = </b>", round(1.67*sd(sm_data()),2))),bargap = 0.01)
+})
 
 ```
 
