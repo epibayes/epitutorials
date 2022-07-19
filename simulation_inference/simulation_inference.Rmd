@@ -13,7 +13,7 @@ require(rstanarm)
 require(bayesplot)
 require(ggplot2)
 require(plotly)
-require(flexdashboard)
+require(flexdashboard) #for gauge
 
 knitr::opts_chunk$set(echo = FALSE)
 ```
@@ -374,6 +374,7 @@ For the purposes of inference, we'll re-write it so it looks a bit more familiar
 $$
 P(\theta | Y) = \frac{P(Y|\theta)P(\theta)}{P(Y)}
 $$
+
 $\theta$ is our **model** and its **parameters** and $Y$ are the data. At this point, you may be thinking, ok great, that's not helpful.  
 
 Let's walk through the four parts of the rule:
@@ -395,16 +396,14 @@ Remember, in R, we can write the likelihood of an observed data point from a nor
 y_lik <- dnorm(y, mean = mu, sd = sd)
 ```
 
-
 ### Estimating Parameters Using the **Posterior**
-
 First, remember the sample mean from the very first example:
 
 ```{r}
 verbatimTextOutput("sm2")
 ```
 
-It turns out, that in R, with packages like `rstanarm`, fitting a Bayesian model is roughly as straightforward as fitting a frequentist one, for example, to estimate the mean and standard deviation of our data, we can just write:
+It turns out, that in R, with packages like `rstanarm`, fitting a Bayesian model is roughly as straightforward as fitting a frequentist one; for example, to estimate the mean and standard deviation of our data, we can just write:
 
 ```{r, eval=FALSE,echo=TRUE}
 library(rstanarm)
@@ -413,20 +412,68 @@ fit <- stan_glm(y ~ 1, data = df)
 
 Where `df` is a data frame containing our samples under the variable `y`, and the formula `y ~ 1` tells `R` to fit a model with just an intercept, in this case the mean of the sample.
 
-
 Now go ahead and sample from the posterior and see what you get. In this example, we will just fit the mean, fixing the standard deviation at its input value.
 
 ```{r, echo=FALSE}
-fluidRow(
-  column(12, actionButton("cpost", "Simulate Posterior")),
+# fluidRow(
+#   column(12, actionButton("cpost", "Simulate Posterior")),
+# )
+# fluidRow(
+#   column(6,plotOutput("posterior_mean"),),
+#   column(6, plotOutput("posterior_sigma")), 
+#   style="border: 1px solid #e6e6e6; padding: 10px 0px; margin: 10px 0px;"
+# )
+
+sidebarPanel(
+    numericInput(
+    "mean5",
+    "Mean:",
+    value = 0,
+  ),
+  sliderInput(
+    "sd5",
+    "Standard Deviation:",
+    min = 0.1,
+    max = 4,
+    value = 1
+  ),
 )
-fluidRow(
-  column(6,plotOutput("posterior_mean"),),
-  column(6, plotOutput("posterior_sigma")), 
-  style="border: 1px solid #e6e6e6; padding: 10px 0px; margin: 10px 0px;"
+mainPanel(
+  tabsetPanel(
+    tabPanel("Posterior Mean",  plotOutput("posterior_mean")),
+    tabPanel("Posterior Standard Deviation", plotOutput("posterior_sigma"))
+  )
+  
 )
+
 ```
 
+```{r, context = "server"}
+bayes_fit <- eventReactive(list(input$mean5, input$sd5), {
+  fit <- stan_glm(y ~ 1, data = data.frame(y = x()))
+
+})
+
+output$posterior_mean <- renderPlot({
+    posterior <- as.matrix(bayes_fit())
+
+  plot_title <- ggtitle("Posterior Mean",
+                      subtitle="With Medians and 95% Interval")
+  mcmc_areas(posterior, 
+           pars = c("(Intercept)"), 
+           prob = 0.95) + plot_title + geom_vline(xintercept = input$mean5)
+})
+
+output$posterior_sigma <- renderPlot({
+    posterior <- as.matrix(bayes_fit())
+
+  plot_title <- ggtitle("Posterior Standard Deviation",
+                      subtitle="With Median and 95% Interval")
+  mcmc_areas(posterior, 
+           pars = c("sigma"), 
+           prob = 0.95) + plot_title + geom_vline(xintercept = input$sd5)
+})
+```
 ## Interpreting the Posterior
 ### Posterior Credible Intervals
 While  **confidence intervals** refer to our confidence that the true parameter is between the intervals estimated from **any given sample**, the posterior credible intervals reflect the probability that **the parameter that generated the data** lies between the bounds. 
@@ -555,30 +602,7 @@ output$sm2 <- renderText({
   paste0("Sample Mean = ", round(mean(x()),2))
   })
 
-bayes_fit <- eventReactive(input$cpost, {
-  fit <- stan_glm(y ~ 1, data = data.frame(y = x()))
 
-})
-
-output$posterior_mean <- renderPlot({
-    posterior <- as.matrix(bayes_fit())
-
-  plot_title <- ggtitle("Posterior Mean",
-                      "With Medians and 95% Interval")
-  mcmc_areas(posterior, 
-           pars = c("(Intercept)"), 
-           prob = 0.95) + plot_title + geom_vline(xintercept = input$mean)
-})
-
-output$posterior_sigma <- renderPlot({
-    posterior <- as.matrix(bayes_fit())
-
-  plot_title <- ggtitle("Posterior Standard Deviation",
-                      "With Median and 95% Interval")
-  mcmc_areas(posterior, 
-           pars = c("sigma"), 
-           prob = 0.95) + plot_title + geom_vline(xintercept = input$sd)
-})
 
 output$posteriorEst <- renderText({
   z <- quantile(rnorm(100), probs=c(0.025, 0.5, 0.975))
