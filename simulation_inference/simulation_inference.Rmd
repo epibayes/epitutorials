@@ -13,6 +13,8 @@ require(rstanarm)
 require(bayesplot)
 require(ggplot2)
 require(plotly)
+require(flexdashboard)
+
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
@@ -115,7 +117,6 @@ sidebarPanel(
     "mean2",
     "Mean:",
     value = 0,
-    min = 0
   ),
   sliderInput(
     "sd2",
@@ -204,7 +205,6 @@ We are supposed to interpret these confidence intervals as meaning "95% of the t
 First, let's take a look at the distribution of **sample means** we get from taking 1000 samples:
 
 ```{r, echo=FALSE}
-
 # fluidRow(
 #   column(12, actionButton("sm", "Simulate Sample Means")),
 # )
@@ -217,7 +217,6 @@ sidebarPanel(
     "mean3",
     "Mean:",
     value = 0,
-    min = 0
   ),
   sliderInput(
     "sd3",
@@ -286,36 +285,77 @@ for (i in 1:1000) {
 ```
 
 ```{r, echo=FALSE}
+# fluidRow(
+#   column(3, actionButton("simint", HTML("Simulate Confidence<br/>Intervals"))),
+#   column(9, verbatimTextOutput("cipct", placeholder=TRUE))
+# )
 fluidRow(
-  column(3, actionButton("simint", HTML("Simulate Confidence<br/>Intervals"))),
-  column(9, verbatimTextOutput("cipct", placeholder=TRUE))
+  column(12, 
+         sidebarPanel(
+    numericInput(
+    "mean4",
+    "Mean:",
+    value = 0,
+  ),
+  sliderInput(
+    "sd4",
+    "Standard Deviation:",
+    min = 0.1,
+    max = 4,
+    value = 1
+  ),
+  sliderInput(
+    "nsamp4",
+    "Number of Samples:",
+    min = 2,
+    max = 500,
+    value = 20
+  ),
+),
+mainPanel(
+  h5("Percent of the Time CI Contains True Mean", style="font-weight:bold;"),
+  gaugeOutput("cipct"),
+  verbatimTextOutput("cipctText", placeholder=TRUE)
+))
 )
+
+
 
 ```
 
 ```{r, context = "server"}
 
-ci_contains <- eventReactive(input$simint,{
+ci_contains <- eventReactive(list(input$nsamp4, input$mean4, input$sd4),{
   
   num_containing <- 0
   
   for (i in 1:1000) {
-    sampled_vals <-rnorm(input$nsamp, mean = input$mean, sd = input$sd)
+    sampled_vals <-rnorm(input$nsamp4, mean = input$mean4, sd = input$sd4)
     tvals <- sigr::TInterval(sampled_vals)
     
-    if ((input$mean >= tvals$interval_low) && (input$mean <= tvals$interval_high)) {
+    if ((input$mean >= tvals$interval_low) && (input$mean4 <= tvals$interval_high)) {
       num_containing <- num_containing + 1
     }
     
   }
   
-  return(paste0(round(100*num_containing/1000,2), "%"))
+  return(round(100*num_containing/1000,2))
   
 })
 
+output$cipctText <- renderText(paste0("Contains the true mean ", ci_contains(), "% of the time!"))
 
-output$cipct <- renderPrint({
-  paste0("Contains the true mean ", ci_contains(), " of the time!")
+output$cipct <- renderGauge({
+  gauge(ci_contains(),
+        min = 0,
+        max = 100,
+        symbol= "%",
+        sectors = gaugeSectors(
+                  success = c(0,33),
+                  warning = c(34,66),
+                  danger = c(67,100),
+                  colors=c("#F7D992", "#FFC20A", "#D35FB7") # colors: https://davidmathlogic.com/colorblind/#%23E1BE6A-%2340B0A6
+                  ))
   })
 
 ```
