@@ -65,21 +65,27 @@ mainPanel(
 
 
 ```{r, context="server"}
+# x1 for sample mean and standard dev, x to pass into ggplot
 
-x <- reactive({rnorm(input$nsamp, input$mean, input$sd)})
+x1 <- reactive({rnorm(input$nsamp, input$mean, input$sd)})
+
+x <- reactive({data.frame(x=rnorm(input$nsamp, input$mean, input$sd))})
+
 
 output$distPlot2 <- renderPlotly({
-  plot_ly(x=x(), histfunc= 'avg', type="histogram") %>% layout(yaxis = list(title="Frequency"),bargap = 0.01)
-})
+  g <- ggplot(x(), aes(x)) + geom_histogram(aes(y = ..density..), binwidth= 1)
+  return(ggplotly(g))
+ })
+
+
+#   plot_ly(x=x(), histfunc= 'avg', type="histogram", histnorm = "density") %>% layout(yaxis = list(title="Frequency"),bargap = 0.01)
+
 # output$distPlot <- renderPlot({
 #   hist(x(),  col = 'darkgray', border = 'white', xlab = mean(x))
-# })
+#})
+output$samplemean <- renderText({paste0("Sample Mean = ", round(mean(x1()),2))})
 
-output$samplemean <- renderText({paste0("Sample Mean = ", round(mean(x()),2))})
-
-
-
-output$se <- renderText({paste0("Sample Standard Deviation = ", round(sd(x()),2))})
+output$se <- renderText({paste0("Sample Standard Deviation = ", round(sd(x1()),2))})
 
 ```
 
@@ -262,13 +268,23 @@ sm_data <- eventReactive(list(input$nsamp3, input$mean3, input$sd3), {
 
 })
 
+# sm_data2 <- reactive({data.frame(x=sm_data())})
+
 # output$samplemeans <- renderPlot({hist(sm_data(), xlab = paste0("Standard error of the mean = ", round(1.67*sd(sm_data()),2)))})
 
 output$samplemeansPlotly <- renderPlotly({
   plot_ly(x=sm_data(), histfunc= 'avg', type="histogram") %>% layout(xaxis = list(title = paste0("<b>Standard Error of the Mean = </b>", round(1.67*sd(sm_data()),2))),bargap = 0.01)
 })
+# 
+
+# output$samplemeansPlotly <- renderPlotly({
+#   g <- ggplot(sm_data2(), aes(x=x)) + geom_histogram(aes(y= ..density..), binwidth=1)
+#   
+#   return(ggplotly(g))
+# })
 
 ```
+ 
 
 So, if for each of those sample means, we computed the confidence intervals, if all goes to plan, 95% of the time, they should include the true value of the mean you set all the way at the top. We can do this easily using the `TInterval` function from the R `sigr` package, like so:
 
@@ -318,9 +334,6 @@ mainPanel(
   verbatimTextOutput("cipctText", placeholder=TRUE)
 ))
 )
-
-
-
 ```
 
 ```{r, context = "server"}
@@ -450,7 +463,7 @@ mainPanel(
 
 ```{r, context = "server"}
 bayes_fit <- eventReactive(list(input$mean5, input$sd5), {
-  fit <- stan_glm(y ~ 1, data = data.frame(y = x()))
+  fit <- stan_glm(y ~ 1, data = data.frame(y = x1()))
 
 })
 
