@@ -172,10 +172,11 @@ ssePlot <-
       data.frame(
         mean = round(mean(x2()), 2),
         lowCI = round(mean(x2()) - sse(), 2),
-        highCI = round(mean(x2()) + sse(), 2)
+        highCI = round(mean(x2()) + sse(), 2),
+        x=1
       )
     
-    g <- ggplot(df)  + geom_errorbar(aes(x = 1, ymin = lowCI, ymax = highCI), size = 2) + geom_point(aes(x = 1, y = mean), size = 2)
+    g <- ggplot(df, aes(x=x)) + ylim(round(mean(x2()), 2) - 70, round(mean(x2()), 2) + 70) + geom_errorbar(aes(ymin = lowCI, ymax = highCI), size = 2) + geom_point(aes(x = x, y= mean, ymin = lowCI, ymax = highCI), size = 1)
     return(ggplotly(g))
   })
 
