@@ -341,11 +341,21 @@ ci_contains <- eventReactive(list(input$nsamp4, input$mean4, input$sd4),{
   
   num_containing <- 0
   
+  mean_val <- 0
+  
+  # checks if mean4 is N. if NA, mean_val is 0. else, mean_val is input$mean4
+  if (is.na(input$mean4)) {
+    mean_val = 0
+  }
+  else {
+    mean_val <- input$mean4    
+  }
+  
   for (i in 1:1000) {
-    sampled_vals <-rnorm(input$nsamp4, mean = input$mean4, sd = input$sd4)
+    sampled_vals <-rnorm(input$nsamp4, mean = mean_val, sd = input$sd4)
     tvals <- sigr::TInterval(sampled_vals)
     
-    if ((input$mean4 >= tvals$interval_low) && (input$mean4 <= tvals$interval_high)) {
+    if ((mean_val>= tvals$interval_low) && (mean_val <= tvals$interval_high)) {
       num_containing <- num_containing + 1
     }
     
@@ -353,6 +363,14 @@ ci_contains <- eventReactive(list(input$nsamp4, input$mean4, input$sd4),{
   
   return(round(100*num_containing/1000,2))
   
+})
+
+#observeEvent to re-add 0 if NA
+observeEvent(input$mean4,{
+  if (is.na(input$mean4)) {
+      updateNumericInput(session, "mean4", value=0)
+  }
+
 })
 
 output$cipctText <- renderText(paste0("Contains the true mean ", ci_contains(), "% of the time!"))
