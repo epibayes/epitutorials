@@ -165,7 +165,8 @@ ssePlot <-
         samples <- samples
       )
     
-    g <- ggplot(df, aes(x=samples)) + ylim(round(mean(x2()), 2) - 10, round(mean(x2()), 2) + 10) + geom_linerange(aes(ymin = lowCI, ymax = highCI), size = 1) + geom_point(aes(x = samples, y= mean, ymin = lowCI, ymax = highCI), size = 1)
+    g <- ggplot(df, aes(x=samples)) + ylim(round(mean(x2()), 2) - 10, round(mean(x2()), 2) + 10) + geom_pointrange(aes(x = samples, ymin = lowCI, ymax = highCI, y = mean), size = 1)
+    # + geom_point(aes(x = samples, y= mean, ymin = lowCI, ymax = highCI), size = 1)
     return(ggplotly(g))
   })
 
