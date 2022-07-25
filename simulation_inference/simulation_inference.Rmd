@@ -110,7 +110,7 @@ upper_ci <- a + error
 
 <!-- Now, go ahead and calculate these for the input values above: -->
 
-Updating the mean, sample size, and standard deviation will update the confidence intervals below:
+Updating the mean and standard deviation will update the confidence intervals below for each sample size:
 
 ```{r, echo=FALSE}
 # fluidRow(
@@ -131,52 +131,41 @@ sidebarPanel(
     max = 4,
     value = 1
   ),
-  sliderInput(
-    "nsamp2",
-    "Number of Samples:",
-    min = 2,
-    max = 500,
-    value = 20
-  ),
 )
 mainPanel(
   plotlyOutput("ssePlot")
 )
-# fluidRow(
-#   column(12, plotlyOutput("ssePlot"))
-# )
-fluidRow(
-  column(12, verbatimTextOutput("sse", placeholder=TRUE))
-)
+
 
 ```
 
 ```{r, context="server"}
 
-# x2 is a function that listens to and rnorms nsamp2, mean2, and sd2
-x2 <- reactive({rnorm(input$nsamp2, input$mean2, input$sd2)})
+# samples is a list of numbers 1, 5, 10, 15, 20 etc. up to 100
+samples <- c(2,seq(5,25, by = 5))
 
+# x2 is a function that listens to and rnorms mean2, and sd2. samples is also passed in
+x2 <- reactive({rnorm(samples, input$mean2, input$sd2)})
 
-# sse is a function that listens to nsamp2 and calculates sse.
-sse <-
-  eventReactive(input$nsamp2, {
-    qt(0.975, df = input$nsamp2 - 1) * (sd(x2()) / sqrt(input$nsamp2))
+# sse is a function that and calculates sse for each sample in the vector "samples".
+sse <-   eventReactive(samples, {
+    qt(0.975, df = samples - 1) * (sd(x2()) / sqrt(samples))
   })
 
-# ssePlot is a function that listens to the nsamp2, mean2, and sd2 and when any of those change, updates a dataframe that holds the mean, lower CI, and upper CI. These will also update if sse updates (basically if nsamp2 updates).
-# then, it will generate a ggplot-errorbar that uses x as a random base (currently set at 1 for the plot to generate), ymin/maxes based on the low and high CIs, and a geom_point placed at the x (set at 1, the same value passed to the geom_errorbar) with the y coord being the mean.
+# ssePlot is a function that listens to the mean2 and sd2 and when any of those change, updates a dataframe that holds the mean, lower CI, and upper CI.
+
 
 ssePlot <-
-  eventReactive(list(input$nsamp2, input$mean2, input$sd2), {
+  eventReactive(list(input$mean2, input$sd2), {
     df <-
       data.frame(
-        mean = round(mean(x2()), 2),
-        lowCI = round(mean(x2()) - sse(), 2),
-        highCI = round(mean(x2()) + sse(), 2),
-        x=1
+        mean <- round(mean(x2()), 2),
+        lowCI <- round(mean(x2()) - sse(), 2),
+        highCI <- round(mean(x2()) + sse(), 2),
+        samples <- samples
       )
     
-    g <- ggplot(df, aes(x=x)) + ylim(round(mean(x2()), 2) - 70, round(mean(x2()), 2) + 70) + geom_errorbar(aes(ymin = lowCI, ymax = highCI), size = 2) + geom_point(aes(x = x, y= mean, ymin = lowCI, ymax = highCI), size = 1)
+    g <- ggplot(df, aes(x=samples)) + ylim(round(mean(x2()), 2) - 10, round(mean(x2()), 2) + 10) + geom_linerange(aes(ymin = lowCI, ymax = highCI), size = 1) + geom_point(aes(x = samples, y= mean, ymin = lowCI, ymax = highCI), size = 1)
     return(ggplotly(g))
   })
 
