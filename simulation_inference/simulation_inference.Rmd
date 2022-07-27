@@ -142,10 +142,29 @@ mainPanel(
 ```{r, context="server"}
 
 # samples is a list of numbers 1, 5, 10, 15, 20 etc. up to 100
-samples <- c(2,seq(5,25, by = 5))
+samples <- 2:20 #<- c(2,seq(5,25, by = 5))
 
 # x2 is a function that listens to and rnorms mean2, and sd2. samples is also passed in
-x2 <- reactive({rnorm(samples, input$mean2, input$sd2)})
+#x2 <- reactive({rnorm(samples, input$mean2, input$sd2)})
+x2 <- reactive({
+  df <- data.frame()
+  for (s in samples) {
+    x <- rnorm(s, input$mean2, input$sd2)
+    tmp_mean <- mean(x)
+    tmp_sd = sd(x)
+    tmp_sse = qt(0.975, df = s - 1) * (tmp_sd / sqrt(s))
+    df <- rbind(df, data.frame(nsamp = s, 
+                               mean = tmp_mean , 
+                               sd = tmp_sd, 
+                               sse = tmp_sse,
+                               high_ci = tmp_mean + tmp_sse,
+                               low_ci = tmp_mean - tmp_sse))
+
+  }
+      return(df)
+})
+    
+  
 
 # sse is a function that and calculates sse for each sample in the vector "samples".
 sse <-   eventReactive(samples, {
@@ -157,15 +176,13 @@ sse <-   eventReactive(samples, {
 
 ssePlot <-
   eventReactive(list(input$mean2, input$sd2), {
-    df <-
-      data.frame(
-        mean <- round(mean(x2()), 2),
-        lowCI <- round(mean(x2()) - sse(), 2),
-        highCI <- round(mean(x2()) + sse(), 2),
-        samples <- samples
-      )
+
     
-    g <- ggplot(df, aes(x=samples)) + ylim(round(mean(x2()), 2) - 10, round(mean(x2()), 2) + 10) + geom_pointrange(aes(x = samples, ymin = lowCI, ymax = highCI, y = mean), size = 1)
+    g <- ggplot(x2()) +  
+      geom_pointrange(aes(x = nsamp, ymin = low_ci, ymax = high_ci, y = mean), size = 1) +
+      xlab("Number of samples") + 
+      ylab("Sample mean and 95% CIs")
+
     # + geom_point(aes(x = samples, y= mean, ymin = lowCI, ymax = highCI), size = 1)
     return(ggplotly(g))
   })
