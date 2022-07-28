@@ -180,8 +180,8 @@ ssePlot <-
     
     g <- ggplot(x2()) +  
       geom_pointrange(aes(x = nsamp, ymin = low_ci, ymax = high_ci, y = mean), size = 1) +
-      xlab("Number of samples") + 
-      ylab("Sample mean and 95% CIs")
+      xlab("Number of Samples") + 
+      ylab("Sample Mean and 95% CIs")
 
     # + geom_point(aes(x = samples, y= mean, ymin = lowCI, ymax = highCI), size = 1)
     return(ggplotly(g))
