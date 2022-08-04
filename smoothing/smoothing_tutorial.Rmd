@@ -424,6 +424,20 @@ output$diffHistRandom <- renderPlot({
   return(hist(cs_smooth$z, breaks=100))
   
 })
+output$diffHistRandomPlotly <- renderPlotly({
+  df <- random_case_data()
+  hotspot_pts <- df %>% filter(case == 1)
+  background_pts <- df %>% filter(case == 0)
+  
+  cs_smooth <- kde2ddf(hotspot_pts)
+  cl_smooth <- kde2ddf(background_pts)
+  cs_smooth$z <- cs_smooth$p - cl_smooth$p
+  
+  g <- ggplot(data.frame(x = cs_smooth$z)) + geom_histogram(aes(x=x, binwidth=1))+ xlab("cs_smooth$z")+ ylab("Frequency")
+  p <- ggplotly(g)
+  return(p)
+  
+})
 ```
 
 #### Try to Find the Hotspots
@@ -514,7 +528,8 @@ If we take a look at the histogram of these differences across all the locations
 
 ```{r, echo=FALSE}
 fluidRow(
-  column(12, plotOutput("diffHistRandom"))
+  column(12, plotOutput("diffHistRandom")),
+  column(12, plotlyOutput("diffHistRandomPlotly"))
 )
 ```
 
