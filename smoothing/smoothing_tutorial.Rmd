@@ -549,7 +549,7 @@ fluidRow(column(3,  actionButton(
 )),
 column(9,
        tabsetPanel(
-         tabPanel("Max Values", plotOutput("maxValsHist")),
+         tabPanel("Max Values", plotlyOutput("maxValsHistPlotly")),
          tabPanel("Hotspots", plotOutput("hotspotPlot")),
          tabPanel("Percents", textOutput("dataPVal"))
        )))
@@ -579,11 +579,17 @@ column(9,
 
   }, ignoreNULL = TRUE, ignoreInit=TRUE)
   
-  output$maxValsHist <- renderPlot({
+  # output$maxValsHist <- renderPlot({
+  #   dd <- randomDist()
+  #   df <- data.frame(x = dd$max)
+  #   g <- ggplot(df, aes(x)) + geom_histogram()
+  #   return(g)
+  # })
+    output$maxValsHistPlotly <- renderPlotly({
     dd <- randomDist()
     df <- data.frame(x = dd$max)
     g <- ggplot(df, aes(x)) + geom_histogram()
-    return(g)
+    return(ggplotly(g))
   })
   
   randomEcdf <- reactive({
