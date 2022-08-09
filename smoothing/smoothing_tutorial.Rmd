@@ -422,18 +422,18 @@ output$diffPlotRandom <- renderPlotly({
   return(ggplotly(g))
 })
 
-output$diffHistRandom <- renderPlot({
-  df <- random_case_data()
-  hotspot_pts <- df %>% filter(case == 1)
-  background_pts <- df %>% filter(case == 0)
-  
-  cs_smooth <- kde2ddf(hotspot_pts)
-  cl_smooth <- kde2ddf(background_pts)
-  cs_smooth$z<- cs_smooth$p - cl_smooth$p
-  
-  return(hist(cs_smooth$z, breaks=100))
-  
-})
+# output$diffHistRandom <- renderPlot({
+#   df <- random_case_data()
+#   hotspot_pts <- df %>% filter(case == 1)
+#   background_pts <- df %>% filter(case == 0)
+#   
+#   cs_smooth <- kde2ddf(hotspot_pts)
+#   cl_smooth <- kde2ddf(background_pts)
+#   cs_smooth$z<- cs_smooth$p - cl_smooth$p
+#   
+#   return(hist(cs_smooth$z, breaks=100))
+#   
+# })
 output$diffHistRandomPlotly <- renderPlotly({
   df <- random_case_data()
   hotspot_pts <- df %>% filter(case == 1)
@@ -538,7 +538,6 @@ If we take a look at the histogram of these differences across all the locations
 
 ```{r, echo=FALSE}
 fluidRow(
-  column(12, plotOutput("diffHistRandom")),
   column(12, plotlyOutput("diffHistRandomPlotly"))
 )
 ```
@@ -589,12 +588,6 @@ column(9,
 
   }, ignoreNULL = TRUE, ignoreInit=TRUE)
   
-  # output$maxValsHist <- renderPlot({
-  #   dd <- randomDist()
-  #   df <- data.frame(x = dd$max)
-  #   g <- ggplot(df, aes(x)) + geom_histogram()
-  #   return(g)
-  # })
     output$maxValsHistPlotly <- renderPlotly({
     dd <- randomDist()
     df <- data.frame(x = dd$max)
