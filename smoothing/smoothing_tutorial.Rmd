@@ -144,10 +144,15 @@ data_w_model <- reactive({
   return(df)
 })
 
+output$residPlotly <- renderPlotly({
+  g <- ggplot(data.frame(x <- data_w_model()$resid)) + geom_histogram(aes(x=x), bins=12)+ xlab("data_w_model()$resid")+ ylab("Frequency")
+  p <- ggplotly(g)
+  return(p)
+})
+
 output$residPlot <- renderPlot({
   hist(data_w_model()$resid)
 })
-
 
 
 output$distPlot <- renderPlot({
@@ -199,8 +204,8 @@ output$distPlot <- renderPlot({
 
   
   if (is.na(xpt()) == FALSE) {
-    g <- g+ geom_vline(xintercept = xpt(), colour ="gray", size = 1.5) + 
-      geom_line(aes(y=subset_pred), colour = "blue", linetype ="dashed", size = 1.5)
+    g <- g+ geom_vline(xintercept = xpt(), colour ="darkgray", size = 1) + 
+      geom_line(aes(y=subset_pred), colour = "blue", linetype ="dashed", size = 1)
   }
   
   g <- g +  xlim(0, 10) + ylim(min(model_d$y)-2, max(model_d$y)+2)
@@ -252,20 +257,25 @@ ggplotly(g)
 When you click on the plot, it will highlight the points used for interpolation at the selected point in red, and highlight the point itself in blue. 
 
 ```{r}
-sidebarPanel(
-  sliderInput("smooth", "Proportion of points used for smoothing", min = 0.01, max = 1.0, value = 0.2),
-  selectInput("smoother_degree", "Smoother Type:",
-              c("Moving Average" = 0,
-                "Linear" = 1,
-                "Polynomial" = 2))
-)
 
-mainPanel(
-  tabsetPanel(
-    tabPanel("Plot", 
-             plotOutput("distPlot", click = "mp_click")),
-    tabPanel("Residuals", plotOutput("residPlot")),
-    tabPanel("Model Summary", verbatimTextOutput("model_summary"))
+fluidRow(
+  column(12,
+         tabsetPanel(
+           tabPanel("Plot", 
+                    plotOutput("distPlot", click = "mp_click")),
+           tabPanel("Residuals", plotlyOutput("residPlotly"),
+                    plotOutput("residPlot")),
+           tabPanel("Model Summary", verbatimTextOutput("model_summary"))
+         )
+  )
+)
+fluidRow(
+  column(12,
+         sliderInput("smooth", "Proportion of points used for smoothing", min = 0.01, max = 1.0, value = 0.2),
+         selectInput("smoother_degree", "Smoother Type:",
+                     c("Moving Average" = 0,
+                       "Linear" = 1,
+                       "Polynomial" = 2)), style="width: 95%; background-color: #f5f5f5; border: 1px solid #e3d3e3; border-radius: 4px; box-shadow: inset 0 1px 1px rgba(0,0,0,0.05); padding: 19px; min-height: 20px; margin-bottom: 20px; margin-left: 20px;"
   )
 )
 ```
@@ -407,8 +417,8 @@ output$diffPlotRandom <- renderPlotly({
   ## Get differences between case and control
   cs_smooth <- kde2ddf(hotspot_pts)
   cl_smooth <- kde2ddf(background_pts)
-  cs_smooth$z<- cs_smooth$p - cl_smooth$p
-  g <- ggplot(cs_smooth, aes(x=x,y=y,z=z)) + geom_raster(aes(fill = z)) + coord_equal() +  theme(legend.position = "none")
+  cs_smooth$frequency<- cs_smooth$p - cl_smooth$p
+  g <- ggplot(cs_smooth, aes(x=x,y=y)) + geom_raster(aes(fill = frequency)) + coord_equal() +  theme(legend.position = "none") 
   return(ggplotly(g))
 })
 
@@ -462,8 +472,8 @@ kde2ddf <- function(df, n = 50, lims = c(range(0:10),range(0:10))){
   ## This code turns the data into a df
   dd <- kde2d(df$x, df$y, n= 100, lims = lims)
   gr <- data.frame(with(dd, expand.grid(x,y)), as.vector(dd$z))
-  colnames(gr) <- c("x","y","z")
-  gr$p <- gr$z/sum(gr$z)
+  colnames(gr) <- c("x","y","frequency")
+  gr$p <- gr$frequency/sum(gr$frequency)
   return(gr)
 }
 
@@ -482,7 +492,7 @@ data_diff <- reactive({
 
 output$diffPlot <- renderPlotly({
   df <- data_diff()
-  g <- ggplot(df, aes(x=x,y=y,z=z)) + geom_raster(aes(fill = z)) + coord_equal() + theme(legend.position = "none")
+  g <- ggplot(df, aes(x=x,y=y)) + geom_raster(aes(fill = frequency)) + coord_equal() + theme(legend.position = "none")
   return(ggplotly(g))
 })
 
@@ -546,7 +556,7 @@ In other words, when you click the button below, we'll complete the shuffling st
 ```{r, echo=FALSE}
 fluidRow(column(3,  actionButton(
   "simulate", HTML("Draw Random<br/> Permutations!")
-)),
+, style="background-color: #f5f5f5; border: 1px solid #e3d3e3; border-radius: 4px; box-shadow: inset 0 1px 1px rgba(0,0,0,0.05); padding: 19px; min-height: 20px; margin-bottom: 20px;")),
 column(9,
        tabsetPanel(
          tabPanel("Max Values", plotlyOutput("maxValsHistPlotly")),
