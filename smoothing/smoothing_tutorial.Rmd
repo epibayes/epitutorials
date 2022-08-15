@@ -443,7 +443,7 @@ output$diffHistRandomPlotly <- renderPlotly({
   cl_smooth <- kde2ddf(background_pts)
   cs_smooth$z <- cs_smooth$p - cl_smooth$p
   
-  g <- ggplot(data.frame(x = cs_smooth$z)) + geom_histogram(aes(x=x), bins=100)+ xlab("cs_smooth$z")+ ylab("Frequency")
+  g <- ggplot(data.frame(x = cs_smooth$z)) + geom_histogram(aes(x=x, y=..density..), bins=100)+ xlab("cs_smooth$z")
   p <- ggplotly(g)
   return(p)
   
