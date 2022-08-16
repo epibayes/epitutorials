@@ -14,6 +14,7 @@ require(lhs)
 require(FNN)
 require(truncnorm)
 require(waiter)
+library(reshape2) #for plotly geom_raster?
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
@@ -145,7 +146,7 @@ data_w_model <- reactive({
 })
 
 output$residPlotly <- renderPlotly({
-  g <- ggplot(data.frame(x <- data_w_model()$resid)) + geom_histogram(aes(x=x), bins=12)+ xlab("data_w_model()$resid")+ ylab("Frequency")
+  g <- ggplot(data.frame(x <- data_w_model()$resid)) + geom_histogram(aes(x=x, y=..density..), bins=12)+ xlab("data_w_model()$resid") + ylab("Density")
   p <- ggplotly(g)
   return(p)
 })
@@ -263,8 +264,7 @@ fluidRow(
          tabsetPanel(
            tabPanel("Plot", 
                     plotOutput("distPlot", click = "mp_click")),
-           tabPanel("Residuals", plotlyOutput("residPlotly"),
-                    plotOutput("residPlot")),
+           tabPanel("Residuals", plotlyOutput("residPlotly")),
            tabPanel("Model Summary", verbatimTextOutput("model_summary"))
          )
   )
@@ -443,7 +443,7 @@ output$diffHistRandomPlotly <- renderPlotly({
   cl_smooth <- kde2ddf(background_pts)
   cs_smooth$z <- cs_smooth$p - cl_smooth$p
   
-  g <- ggplot(data.frame(x = cs_smooth$z)) + geom_histogram(aes(x=x, y=..density..), bins=100)+ xlab("cs_smooth$z")
+  g <- ggplot(data.frame(x = cs_smooth$z)) + geom_histogram(aes(x=x, y=..density..), bins=100)+ xlab("cs_smooth$z") + ylab("Density")
   p <- ggplotly(g)
   return(p)
   
@@ -544,7 +544,7 @@ fluidRow(
 
 In the final section, we'll take advantage of this random variation to ask how robust the pattern we generated all the way back at the top actually is!
 
-### A Permutation Test
+## A Permutation Test
 
 To assess how robust our results are, we need to formalize our question into something like a statistical hypothesis. For this example, we're going to ask this question:
 
@@ -559,7 +559,10 @@ fluidRow(column(3,  actionButton(
 column(9,
        tabsetPanel(
          tabPanel("Max Values", plotlyOutput("maxValsHistPlotly")),
-         tabPanel("Hotspots", plotOutput("hotspotPlot")),
+         tabPanel("Hotspots", 
+                  # plotOutput("hotspotPlot"),
+                  plotlyOutput("hotspotPlotly")
+                  ),
          tabPanel("Percents", textOutput("dataPVal"))
        )))
 
@@ -591,7 +594,7 @@ column(9,
     output$maxValsHistPlotly <- renderPlotly({
     dd <- randomDist()
     df <- data.frame(x = dd$max)
-    g <- ggplot(df, aes(x)) + geom_histogram()
+    g <- ggplot(df, aes(x)) + geom_histogram(aes(y=..density..))+ ylab("Density")
     return(ggplotly(g))
   })
   
@@ -624,11 +627,27 @@ column(9,
     df$p <- p
     df$hot <- 0
     df$hot[df$p >= 0.95] <-1
-    
-    g <- ggplot() + geom_raster(data=df,aes(x=x,y=y,fill=hot)) + geom_point(data=datadf,aes(x=x,y=y, shape=as.factor(case)), size=2, color="lightgrey")
+
+    g <- ggplot() + geom_raster(data=df,aes(x=x, y=y, group=factor(hot), fill=factor(hot))) +  geom_point(data=datadf,aes(x=x,y=y, shape=as.factor(case)), size=2, color="lightgrey")
         waitress$close()
     return(g)
+
+  })
+  output$hotspotPlotly <- renderPlotly({
+            waitress$start()
+
+    z <- randomDist()
+    datadf <- case_data()
+    dd <- randomEcdf()
+    p <- dd(z$data$z)
+    df <- z$data
+    df$p <- p
+    df$hot <- 0
+    df$hot[df$p >= 0.95] <-1
     
+    g <- ggplot(df) + geom_raster(aes(x=x, y=y, fill=hot)) +  geom_point(data = datadf,aes(x=x,y=y, shape=as.factor(case)), size=1, color="lightgrey")
+        waitress$close()
+    return(ggplotly(g))
   })
   
 ```
