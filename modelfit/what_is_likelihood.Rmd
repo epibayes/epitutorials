@@ -6,7 +6,6 @@ output:
 runtime: shiny_prerendered
 description: "Likelihood and Model Fit: A Visual Tour"
 ---
----
 
 ```{r setup, include=FALSE}
 require(learnr)
@@ -232,18 +231,32 @@ Here we are assuming that **increased** household wealth is associated with decr
 The points in the figure represent SBP observations for individuals in each neighborhood, and the regression line shows the predictions of a model that ignores this clustering and just estimates the intercept and wealth effects.
 
 ```{r, echo=FALSE}
-sidebarLayout(
-sidebarPanel(
-sliderInput("beta_1", "Wealth Effect:", min = -10, max = 0, value = 0),
-sliderInput("beta_2", "Outlier Neighborhood Effect:", min = 0, max = 50, value = 10),
-sliderInput("alpha_bp", "Intercept:", min = 120, max = 200, value = 150),
+sidebarLayout(sidebarPanel(
+  sliderInput(
+    "beta_1",
+    "Wealth Effect:",
+    min = -10,
+    max = 0,
+    value = 0
+  ),
+  sliderInput(
+    "beta_2",
+    "Outlier Neighborhood Effect:",
+    min = 0,
+    max = 50,
+    value = 10
+  ),
+  sliderInput(
+    "alpha_bp",
+    "Intercept:",
+    min = 120,
+    max = 200,
+    value = 150
+  ),
 ),
 
-mainPanel(
-  plotOutput("clusterPlot"),
-  
-)
-)
+mainPanel(# plotOutput("clusterPlot"),
+  plotlyOutput("clusterPlotly")))
 ```
 
 
@@ -303,12 +316,29 @@ output$clusterPlot <- renderPlot({
   plot(g)
 })
 
+output$clusterPlotly <- renderPlotly({
+  
+  point_ll <- dnorm(y_cluster()$y, predict(model_fit()), input$sd, log=TRUE) - y_cluster()$logll
+  
+  g <- ggplot(y_cluster(), aes(x=x)) + 
+    geom_point(aes(y=y, colour = point_ll), size=2) + 
+    xlim(0, 10) + 
+    ylim(0, 210)
+  
+  if (input$adjust == "TRUE") {
+      g <- g + geom_smooth(method = "lm", aes(y=y, group=outlier))
+  } else {
+      g <- g + geom_smooth(method = "lm", aes(y=y))
+
+  }
+  return(ggplotly(plot(g)))
+})
+
 ```
 
 ```{r, echo=FALSE}
-fluidRow(
-  column(
-    3,
+sidebarLayout(
+  sidebarPanel(
     sliderInput(
       "p_n",
       "Probability that Poorest (Wealth = 0) Live in Outlier Neighborhood:",
@@ -316,8 +346,7 @@ fluidRow(
       max = 0.5,
       value = 0.5
     ),
-    
-    sliderInput(
+     sliderInput(
       "o_n",
       "Odds Ratio for Residence in Outlier for 1-Point Increase in Wealth:",
       min = 0.5,
@@ -326,10 +355,37 @@ fluidRow(
     ),
     
     checkboxInput("adjust", "Adjust for Neighborhood:", FALSE)
+    
   ),
-  column(9,
-         verbatimTextOutput("model_summary"))
+  mainPanel(
+  verbatimTextOutput("model_summary")
 )
+)
+
+# fluidRow(
+#   column(
+#     3,
+#     sliderInput(
+#       "p_n",
+#       "Probability that Poorest (Wealth = 0) Live in Outlier Neighborhood:",
+#       min = 0.01,
+#       max = 0.5,
+#       value = 0.5
+#     ),
+#     
+#     sliderInput(
+#       "o_n",
+#       "Odds Ratio for Residence in Outlier for 1-Point Increase in Wealth:",
+#       min = 0.5,
+#       max = 1.0,
+#       value = 1
+#     ),
+#     
+#     checkboxInput("adjust", "Adjust for Neighborhood:", FALSE)
+#   ),
+#   column(9,
+#          verbatimTextOutput("model_summary"))
+# )
 
 ```
 

@@ -643,9 +643,10 @@ column(9,
     df <- z$data
     df$p <- p
     df$hot <- 0
-    df$hot[df$p >= 0.95] <-1
+    df$hot[df$p >= 0.95] <- 1
+
     
-    g <- ggplot(df) + geom_raster(aes(x=x, y=y, fill=hot)) +  geom_point(data = datadf,aes(x=x,y=y, shape=as.factor(case)), size=1, color="lightgrey")
+    g <- ggplot(df) + geom_raster(aes(x=x, y=y, group = hot, fill = hot)) + geom_point(data = datadf,aes(x=x,y=y, shape=as.factor(case)), size=1, color="lightgrey")
         waitress$close()
     return(ggplotly(g))
   })
