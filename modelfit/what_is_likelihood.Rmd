@@ -29,59 +29,117 @@ To get a better feel for what this looks like, let's first generate some data fr
 
 ```{r, echo=FALSE}
 sidebarPanel(
-sliderInput("mu", "Mean:", min = 0.1, max = 5, value = 2),
-sliderInput("norm_sd", "Standard Deviation:", min = 0.1, max = 4, value = 1)
+  sliderInput(
+    "mu",
+    "Mean:",
+    min = 0.1,
+    max = 5,
+    value = 2
+  ),
+  sliderInput(
+    "norm_sd",
+    "Standard Deviation:",
+    min = 0.1,
+    max = 4,
+    value = 1
+  )
 )
 
-mainPanel(
-plotlyOutput("normHist"),
-)
+mainPanel(plotlyOutput("normHist"),)
 ```
 
 ```{r, context="server"}
-norm_vals <- reactive({rnorm(100, input$mu, input$norm_sd)})
-
-norm_pos <- reactive({rnorm(length(norm_vals()))
-                            })
-  
-  norm_ll <- reactive({dnorm(norm_vals(), input$mu_guess, input$sd_guess, log=TRUE)})
-
-norm_slice <- reactive({purrr::map_dbl(seq(from=0.1, to=10, by=0.1), function(x) 
-  {
-  sum(dnorm(norm_vals(), input$mu_guess,x,log=TRUE))
-  })
+norm_vals <- reactive({
+  rnorm(100, input$mu, input$norm_sd)
 })
-  
+
+norm_vals2 <- reactive({
+  rnorm(100, input$mu2, input$norm_sd2)
+})
+
+norm_vals3 <- reactive({
+  rnorm(100, input$mu3, input$norm_sd3)
+})
+
+norm_pos <- reactive({
+  rnorm(length(norm_vals()))
+})
+
+norm_pos2 <- reactive({
+  rnorm(length(norm_vals2()))
+})
+
+norm_pos3 <- reactive({
+  rnorm(length(norm_vals3()))
+})
+
+norm_ll <-
+  reactive({
+    dnorm(norm_vals(), input$mu_guess, input$sd_guess, log = TRUE)
+  })
+
+norm_slice <-
+  reactive({
+    purrr::map_dbl(seq(from = 0.1, to = 10, by = 0.1), function(x)
+    {
+      sum(dnorm(norm_vals(), input$mu_guess, x, log = TRUE))
+    })
+  })
+
+norm_slice3 <-
+  reactive({
+    purrr::map_dbl(seq(from = 0.1, to = 10, by = 0.1), function(x)
+    {
+      sum(dnorm(norm_vals3(), input$mu_guess, x, log = TRUE))
+    })
+  })
+
 output$normHist <- renderPlotly({
-  g <- ggplot(data.frame(x=norm_vals())) + geom_dotplot(aes(x=x),dotsize=0.4) + xlab("Value") + ylab("Density")
+  g <-
+    ggplot(data.frame(x = norm_vals())) + geom_dotplot(aes(x = x), dotsize =
+                                                         0.4) + xlab("Value") + ylab("Density")
   return(ggplotly(g))
-
-
+  
+  
 })
 
 
-  output$normLL <- renderPlotly({
-    df <- data.frame(x=norm_vals())
-    df$y <- norm_pos()
-    g2 <- ggplot(data=df) + geom_point(aes(x=x,y=y,colour=norm_ll()), size=2) + theme(axis.title.y=element_blank(),
-                                                        axis.text.y=element_blank(),
-                                                        axis.ticks.y=element_blank()) +
-      
-      geom_vline(xintercept=input$mu_guess) +
-      geom_segment(aes(x=input$mu_guess-input$sd_guess, xend=input$mu_guess+input$sd_guess,y=0,yend=0),arrow = arrow()) + 
-      scale_colour_gradient(name="Log-likelihood",limits=c(-10,0)) 
+output$normLL <- renderPlotly({
+  df <- data.frame(x = norm_vals2())
+  df$y <- norm_pos2()
+  g2 <-
+    ggplot(data = df) + geom_point(aes(x = x, y = y, colour = norm_ll()), size =
+                                     2) + theme(
+                                       axis.title.y = element_blank(),
+                                       axis.text.y = element_blank(),
+                                       axis.ticks.y = element_blank()
+                                     ) +
     
-    return(ggplotly(g2))  
-  })
+    geom_vline(xintercept = input$mu_guess) +
+    geom_segment(
+      aes(
+        x = input$mu_guess - input$sd_guess,
+        xend = input$mu_guess + input$sd_guess,
+        y = 0,
+        yend = 0
+      ),
+      arrow = arrow()
+    ) +
+    scale_colour_gradient(name = "Log-likelihood", limits = c(-10, 0))
   
-  output$normSlice <- renderPlotly({
-    df <- data.frame(x= seq(from=0.1, to=10, by=0.1), y=norm_slice())
-    
-   g <- ggplot(data=df) + geom_point(aes(x=x,y=y), size=2) + coord_cartesian(ylim=c(-500,0)) +
-     geom_vline(xintercept=input$sd_guess) + ylab("Total log-likelihood") + xlab("SD Guess")
-   
-   return(ggplotly(g))
-  })
+  return(ggplotly(g2))
+})
+
+output$normSlice <- renderPlotly({
+  df <- data.frame(x = seq(from = 0.1, to = 10, by = 0.1), y = norm_slice3())
+  
+  g <-
+    ggplot(data = df) + geom_point(aes(x = x, y = y), size = 2) + coord_cartesian(ylim =
+                                                                                    c(-500, 0)) +
+    geom_vline(xintercept = input$sd_guess) + ylab("Total log-likelihood") + xlab("SD Guess")
+  
+  return(ggplotly(g))
+})
 
 ```
 
@@ -99,13 +157,30 @@ In this example, the vertical line shows you the value of your guess for the mea
 
 ```{r, echo=FALSE}
 sidebarPanel(
-sliderInput("mu_guess", "Mean:", min = -5, max = 5, step = 0.1, value = 2)
-)
+  sliderInput(
+    "mu2",
+    "Mean:",
+    min = 0.1,
+    max = 5,
+    value = 2
+  ),
+  sliderInput(
+    "norm_sd2",
+    "Standard Deviation:",
+    min = 0.1,
+    max = 4,
+    value = 1
+  ),
+  sliderInput(
+  "mu_guess",
+  "Mean:",
+  min = -5,
+  max = 5,
+  step = 0.1,
+  value = 2
+))
 
-mainPanel(
-plotlyOutput("normLL")
-
-)
+mainPanel(plotlyOutput("normLL"))
 ```
 
 ### Fit the Standard Deviation
@@ -117,13 +192,29 @@ The vertical line is fixed at the standard deviation of the data, and you can se
 Try moving the guess for the standard deviation around and see how it changes the color of the individual points above as well as the overall likelihood of the data.
 
 ```{r, echo=FALSE}
-
 sidebarPanel(
-  sliderInput("sd_guess", "Standard Deviation:", min = 0.1, max = 10, value = 1)
-)
-mainPanel(
-  plotlyOutput("normSlice")
-)
+  sliderInput(
+    "mu3",
+    "Mean:",
+    min = 0.1,
+    max = 5,
+    value = 2
+  ),
+  sliderInput(
+    "norm_sd3",
+    "Standard Deviation:",
+    min = 0.1,
+    max = 4,
+    value = 1
+  ),
+  sliderInput(
+  "sd_guess",
+  "Standard Deviation:",
+  min = 0.1,
+  max = 10,
+  value = 1
+))
+mainPanel(plotlyOutput("normSlice"))
 ```
 
 ```{r,context="server"}
