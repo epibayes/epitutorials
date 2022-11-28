@@ -1,5 +1,6 @@
 ---
 title: "Using Spatial Data to Estimate the Effects of Treatment"
+author: "<i>created by <a href='https://epibayes.io/author/jon-zelner/' target='_blank'>Jon Zelner</a> with help from Stephanie Choi</i>"
 output: 
   learnr::tutorial:
     progressive: true

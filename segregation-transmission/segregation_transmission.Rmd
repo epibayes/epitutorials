@@ -1,12 +1,12 @@
 ---
 title: "Residential Segregation and Infectious Disease Transmission"
+author: "<i>created by <a href='https://epibayes.io/author/jon-zelner/' target='_blank'>Jon Zelner</a> with help from Stephanie Choi</i>"
 output: 
   learnr::tutorial:
     progressive: true
     # allow_skip: true
 runtime: shiny_prerendered
-description: >
-  Learn about how residential segregation impacts infection risk.
+description: "Residential Segregation and its Impact on Infectious Disease Transmission"
 ---
 
 ```{r setup, echo=FALSE, message=FALSE, warning=FALSE}

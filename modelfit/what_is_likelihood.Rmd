@@ -1,10 +1,11 @@
 ---
 title: "Likelihood and Model Fit: A Visual Tour"
+author: "<i>created by <a href='https://epibayes.io/author/jon-zelner/' target='_blank'>Jon Zelner</a> with help from Stephanie Choi</i>"
 output: 
   learnr::tutorial:
     progressive: true
 runtime: shiny_prerendered
-description: "Likelihood and Model Fit: A Visual Tour"
+description: "Visualizing Likelihood and Model Fit"
 ---
 
 ```{r setup, include=FALSE}

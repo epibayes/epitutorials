@@ -1,10 +1,11 @@
 ---
 title: "Global Clustering"
+author: "<i>created by <a href='https://epibayes.io/author/jon-zelner/' target='_blank'>Jon Zelner</a> with help from Stephanie Choi</i>"
 output: 
   learnr::tutorial:
    progressive: true
 runtime: shiny_prerendered
-description: "Learn about spatial clustering metrics often used in epidemiological research"
+description: "Spatial Clustering Metrics and their Use in Epidemiological Research"
 ---
 
 ```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
